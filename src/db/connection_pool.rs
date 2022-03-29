@@ -30,7 +30,7 @@ where
 
 pub fn create_connection_pool<T>(settings: &DatabaseSettings) -> DbConnectionPool<T>
 where
-    T: diesel::Connection + ManageConnection,
+    T: diesel::Connection + 'static, // REVIEW: is static need here?
 {
     let manager = ConnectionManager::<T>::new(&settings.url);
     Pool::builder()
