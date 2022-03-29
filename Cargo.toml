@@ -7,9 +7,11 @@ edition = "2021"
 crate-type = ["lib"]
 
 [dependencies]
-anyhow = "1.0"
-diesel = { version = "1.4", features = ["mysql", "postgres", "r2d2"] }
+anyhow = "1.0.56"
+chrono = { version = "0.4" }
+diesel = { version = "1.4", features = ["mysql", "r2d2", "postgres"] }
 itertools = "0.10"
+flexi_logger = { version = "0.22" }
 log = "0.4"
 scheduled-thread-pool = "0.2"
 serde = { version = "1.0", features = ["derive"] }
