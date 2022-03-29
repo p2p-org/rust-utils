@@ -7,7 +7,8 @@ edition = "2021"
 crate-type = ["lib"]
 
 [dependencies]
-diesel = { version = "1.4", features = ["mysql", "r2d2"] }
+anyhow = "1.0"
+diesel = { version = "1.4", features = ["mysql", "postgres", "r2d2"] }
 itertools = "0.10"
 log = "0.4"
 scheduled-thread-pool = "0.2"
