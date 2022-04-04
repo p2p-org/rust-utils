@@ -168,6 +168,10 @@ impl FeeTokenProvider {
     pub fn contains_key(&self, key: &Pubkey) -> UtilsResult<bool> {
         Ok(self.0.read().map_err(|_| poison_error())?.contains_key(key))
     }
+
+    pub fn contains_active_token(&self, key: &Pubkey) -> UtilsResult<bool> {
+        Ok(self.0.read().map_err(|_| poison_error())?.get(key).map(|token| !token.is_update_failed).unwrap_or(false))
+    }
 }
 
 fn poison_error() -> FeeTokenProviderError {
