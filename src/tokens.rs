@@ -85,14 +85,12 @@ impl FeeTokenProvider {
 
         let mut fee_tokens = HashMap::new();
         for token in tokens {
-            if !token.is_update_failed {
-                if fee_tokens.contains_key(&token.mint) {
-                    return Err(UtilsError::FeeTokenProviderError(
-                        FeeTokenProviderError::DuplicateTokenMint(token.mint.to_string()),
-                    ));
-                }
-                fee_tokens.insert(token.mint, token);
+            if fee_tokens.contains_key(&token.mint) {
+                return Err(UtilsError::FeeTokenProviderError(
+                    FeeTokenProviderError::DuplicateTokenMint(token.mint.to_string()),
+                ));
             }
+            fee_tokens.insert(token.mint, token);
         }
 
         *(self.0.write().map_err(|_| poison_error())?) = fee_tokens;
