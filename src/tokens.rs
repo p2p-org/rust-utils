@@ -72,6 +72,10 @@ impl FeeToken {
     pub fn exchange_rate(&self) -> f64 {
         self.exchange_rate
     }
+
+    pub fn is_update_failed(&self) -> bool {
+        self.is_update_failed
+    }
 }
 
 #[derive(Default, Clone)]
