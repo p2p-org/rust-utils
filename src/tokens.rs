@@ -35,6 +35,8 @@ where
 pub struct FeeToken {
     name: String,
 
+    code: String,
+
     #[serde(serialize_with = "serialize_pubkey", deserialize_with = "deserialize_pubkey")]
     mint: Pubkey,
 
@@ -47,9 +49,10 @@ pub struct FeeToken {
 }
 
 impl FeeToken {
-    pub fn new(name: impl Into<String>, mint: Pubkey, account: Pubkey, exchange_rate: f64) -> Self {
+    pub fn new(name: impl Into<String>, code: impl Into<String>, mint: Pubkey, account: Pubkey, exchange_rate: f64) -> Self {
         Self {
             name: name.into(),
+            code: code.into(),
             mint,
             account,
             exchange_rate,
@@ -59,6 +62,10 @@ impl FeeToken {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn code(&self) -> &str {
+        &self.code
     }
 
     pub fn mint(&self) -> &Pubkey {
@@ -199,6 +206,7 @@ mod tests {
             let mint = Pubkey::new_unique();
             let fee_token = FeeToken {
                 name: format!("token{i}"),
+                code: format!("tkn{i}"),
                 mint: mint.clone(),
                 account: Pubkey::new_unique(),
                 exchange_rate: i as f64,
@@ -226,23 +234,26 @@ mod tests {
 
         fee_token_provider
             .0
-            .write()
+            .read()
             .expect("Shouldn't be blocked in test")
             .iter()
             .for_each(|(_, fee_token)| {
                 match fee_token.name() {
                     "token0" => {
+                        assert_eq!("tkn0", fee_token.code());
                         assert_eq!(1f64, fee_token.exchange_rate());
                     },
                     "token1" => {
+                        assert_eq!("tkn1", fee_token.code());
                         assert_eq!(2f64, fee_token.exchange_rate());
                     },
                     "token2" => {
+                        assert_eq!("tkn2", fee_token.code());
                         assert_eq!(3f64, fee_token.exchange_rate());
                     },
-                    _ => panic!("fee_token.name() {} not found", fee_token.name()),
+                    _ => panic!("Fee token with name '{}' not found", fee_token.name()),
                 }
-                assert_eq!(false, fee_token.is_update_failed);
+                assert_eq!(false, fee_token.is_update_failed());
             });
     }
 
@@ -258,23 +269,26 @@ mod tests {
 
         fee_token_provider
             .0
-            .write()
+            .read()
             .expect("Shouldn't be blocked in test")
             .iter()
             .for_each(|(_, fee_token)| match fee_token.name() {
                 "token0" => {
+                    assert_eq!("tkn0", fee_token.code());
                     assert_eq!(1f64, fee_token.exchange_rate());
-                    assert_eq!(false, fee_token.is_update_failed);
+                    assert_eq!(false, fee_token.is_update_failed());
                 },
                 "token1" => {
+                    assert_eq!("tkn1", fee_token.code());
                     assert_eq!(1f64, fee_token.exchange_rate());
-                    assert_eq!(true, fee_token.is_update_failed);
+                    assert_eq!(true, fee_token.is_update_failed());
                 },
                 "token2" => {
+                    assert_eq!("tkn2", fee_token.code());
                     assert_eq!(3f64, fee_token.exchange_rate());
-                    assert_eq!(false, fee_token.is_update_failed);
+                    assert_eq!(false, fee_token.is_update_failed());
                 },
-                _ => panic!("fee_token.name() {} not found", fee_token.name()),
+                _ => panic!("Fee token with name '{}' not found", fee_token.name()),
             });
     }
 }
