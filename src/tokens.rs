@@ -4,7 +4,7 @@ use std::{
     io::BufReader,
     path::Path,
     str::FromStr,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockReadGuard},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -166,14 +166,11 @@ impl FeeTokenProvider {
         Ok(())
     }
 
-    pub fn currencies(&self) -> UtilsResult<Vec<String>> {
+    pub fn read(&self) -> UtilsResult<RwLockReadGuard<HashMap<Pubkey, FeeToken>>> {
         Ok(self
             .0
             .read()
-            .map_err(|_| poison_error())?
-            .iter()
-            .map(|(_, x)| x.name.clone())
-            .collect_vec())
+            .map_err(|_| poison_error())?)
     }
 
     pub fn contains_key(&self, key: &Pubkey) -> UtilsResult<bool> {
