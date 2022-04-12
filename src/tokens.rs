@@ -8,8 +8,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use anyhow::Context;
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
 use solana_sdk::pubkey::{ParsePubkeyError, Pubkey};
 
 use crate::error::{FeeTokenProviderError, UtilsError, UtilsResult};
@@ -37,10 +39,16 @@ pub struct FeeToken {
 
     code: String,
 
-    #[serde(serialize_with = "serialize_pubkey", deserialize_with = "deserialize_pubkey")]
+    #[serde(
+        serialize_with = "serialize_pubkey",
+        deserialize_with = "deserialize_pubkey"
+    )]
     mint: Pubkey,
 
-    #[serde(serialize_with = "serialize_pubkey", deserialize_with = "deserialize_pubkey")]
+    #[serde(
+        serialize_with = "serialize_pubkey",
+        deserialize_with = "deserialize_pubkey"
+    )]
     account: Pubkey,
 
     exchange_rate: f64,
@@ -49,7 +57,13 @@ pub struct FeeToken {
 }
 
 impl FeeToken {
-    pub fn new(name: impl Into<String>, code: impl Into<String>, mint: Pubkey, account: Pubkey, exchange_rate: f64) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        code: impl Into<String>,
+        mint: Pubkey,
+        account: Pubkey,
+        exchange_rate: f64,
+    ) -> Self {
         Self {
             name: name.into(),
             code: code.into(),
@@ -113,7 +127,9 @@ impl FeeTokenProvider {
         let tmp_path_suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|err| {
-                FeeTokenProviderError::PoisonError(format!("Failed to create suffix for temporary file: {err}",))
+                FeeTokenProviderError::PoisonError(format!(
+                    "Failed to create suffix for temporary file: {err}"
+                ))
             })?
             .as_millis();
 
@@ -153,24 +169,21 @@ impl FeeTokenProvider {
                 Some(new_exchange_rate) => {
                     fee_token.exchange_rate = *new_exchange_rate;
                     fee_token.is_update_failed = false;
-                },
+                }
                 None => {
                     log::error!(
                         "Unable to update exchange_rate for {}: token not found",
                         fee_token.name()
                     );
                     fee_token.is_update_failed = true
-                },
+                }
             });
 
         Ok(())
     }
 
     pub fn read(&self) -> UtilsResult<RwLockReadGuard<HashMap<Pubkey, FeeToken>>> {
-        Ok(self
-            .0
-            .read()
-            .map_err(|_| poison_error())?)
+        Ok(self.0.read().map_err(|_| poison_error())?)
     }
 
     pub fn contains_key(&self, key: &Pubkey) -> UtilsResult<bool> {
@@ -178,12 +191,38 @@ impl FeeTokenProvider {
     }
 
     pub fn contains_active_token(&self, key: &Pubkey) -> UtilsResult<bool> {
-        Ok(self.0.read().map_err(|_| poison_error())?.get(key).map(|token| !token.is_update_failed).unwrap_or(false))
+        Ok(self
+            .0
+            .read()
+            .map_err(|_| poison_error())?
+            .get(key)
+            .map(|token| !token.is_update_failed)
+            .unwrap_or(false))
     }
 }
 
 fn poison_error() -> FeeTokenProviderError {
     FeeTokenProviderError::PoisonError("FeeTokenProvider".into())
+}
+
+/// Get token symbol by mint for Main net
+pub async fn get_token_symbol_by_mint(mint: String) -> anyhow::Result<String> {
+    let chain_id = "101"; // MAIN NET
+    let target = format!(
+        "https://cdn.jsdelivr.net/gh/CLBExchange/certified-token-list/{chain_id}/{mint}.json"
+    );
+
+    let response: Value = reqwest::get(target).await?.json().await?;
+
+    #[derive(Deserialize)]
+    struct Response {
+        symbol: String,
+    }
+
+    let response: Response =
+        serde_json::from_value(response).context("unable to deserialize Value")?;
+
+    Ok(response.symbol)
 }
 
 #[cfg(test)]
@@ -194,6 +233,8 @@ mod tests {
     };
 
     use solana_sdk::pubkey::Pubkey;
+
+    use crate::tokens::get_token_symbol_by_mint;
 
     use super::{FeeToken, FeeTokenProvider};
 
@@ -213,6 +254,30 @@ mod tests {
         }
 
         FeeTokenProvider(Arc::new(RwLock::new(fee_tokens)))
+    }
+
+    #[tokio::test]
+    async fn get_tokens_symbol_by_mint() {
+        assert_eq!(
+            get_token_symbol_by_mint("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs".into())
+                .await
+                .expect("in test"),
+            "ETH".to_string()
+        );
+
+        assert_eq!(
+            get_token_symbol_by_mint("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".into())
+                .await
+                .expect("in test"),
+            "USDC".to_string()
+        );
+
+        assert_eq!(
+            get_token_symbol_by_mint("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E".into())
+                .await
+                .expect("in test"),
+            "BTC".to_string()
+        );
     }
 
     #[test]
@@ -239,15 +304,15 @@ mod tests {
                     "token0" => {
                         assert_eq!("tkn0", fee_token.code());
                         assert_eq!(1f64, fee_token.exchange_rate());
-                    },
+                    }
                     "token1" => {
                         assert_eq!("tkn1", fee_token.code());
                         assert_eq!(2f64, fee_token.exchange_rate());
-                    },
+                    }
                     "token2" => {
                         assert_eq!("tkn2", fee_token.code());
                         assert_eq!(3f64, fee_token.exchange_rate());
-                    },
+                    }
                     _ => panic!("Fee token with name '{}' not found", fee_token.name()),
                 }
                 assert_eq!(false, fee_token.is_update_failed());
@@ -258,7 +323,8 @@ mod tests {
     fn update_exchange_rates_successfully_2_out_of_3() {
         let fee_token_provider = init_fee_token_provider(true);
 
-        let new_prices = HashMap::from([("token0".to_string(), 1f64), ("token2".to_string(), 3f64)]);
+        let new_prices =
+            HashMap::from([("token0".to_string(), 1f64), ("token2".to_string(), 3f64)]);
 
         fee_token_provider
             .update_exchange_rates(&new_prices)
@@ -274,18 +340,18 @@ mod tests {
                     assert_eq!("tkn0", fee_token.code());
                     assert_eq!(1f64, fee_token.exchange_rate());
                     assert_eq!(false, fee_token.is_update_failed());
-                },
+                }
                 "token1" => {
                     assert_eq!("tkn1", fee_token.code());
                     assert_eq!(1f64, fee_token.exchange_rate());
                     assert_eq!(true, fee_token.is_update_failed());
-                },
+                }
                 "token2" => {
                     assert_eq!("tkn2", fee_token.code());
                     assert_eq!(3f64, fee_token.exchange_rate());
-                    assert_eq!(false, fee_token.is_update_failed());
-                },
-                _ => panic!("Fee token with name '{}' not found", fee_token.name()),
+                    assert_eq!(false, fee_token.is_update_failed);
+                }
+                _ => panic!("fee_token.name() {} not found", fee_token.name()),
             });
     }
 }
