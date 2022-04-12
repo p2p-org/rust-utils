@@ -206,7 +206,7 @@ fn poison_error() -> FeeTokenProviderError {
 }
 
 /// Get token symbol by mint for Main net
-pub async fn get_token_symbol_by_mint(mint: String) -> anyhow::Result<String> {
+pub async fn get_token_symbol_by_mint(mint: &str) -> anyhow::Result<String> {
     let chain_id = "101"; // MAIN NET
     let target = format!(
         "https://cdn.jsdelivr.net/gh/CLBExchange/certified-token-list/{chain_id}/{mint}.json"
@@ -259,21 +259,21 @@ mod tests {
     #[tokio::test]
     async fn get_tokens_symbol_by_mint() {
         assert_eq!(
-            get_token_symbol_by_mint("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs".into())
+            get_token_symbol_by_mint("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs")
                 .await
                 .expect("in test"),
             "ETH".to_string()
         );
 
         assert_eq!(
-            get_token_symbol_by_mint("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".into())
+            get_token_symbol_by_mint("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
                 .await
                 .expect("in test"),
             "USDC".to_string()
         );
 
         assert_eq!(
-            get_token_symbol_by_mint("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E".into())
+            get_token_symbol_by_mint("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E")
                 .await
                 .expect("in test"),
             "BTC".to_string()
