@@ -17,7 +17,7 @@ impl LogLineFilter for CratesFilter {
         log_line_writer: &dyn LogLineWriter,
     ) -> std::io::Result<()> {
         if let Some(module_path) = record.module_path() {
-            if !module_path.contains("sqlx") && record.level() < Level::Warn {
+            if !module_path.contains("sqlx") && record.level() < Level::Info {
                 log_line_writer.write(now, record)?;
             }
         }
