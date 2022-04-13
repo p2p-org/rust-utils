@@ -2,8 +2,29 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use chrono::Local;
-use flexi_logger::{Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, Naming, WriteMode};
+use flexi_logger::{
+    filter::{LogLineFilter, LogLineWriter},
+    Age, Cleanup, Criterion, DeferredNow, Duplicate, FileSpec, Level, Logger, Naming, WriteMode,
+};
 use serde::Deserialize;
+
+pub struct CratesFilter;
+impl LogLineFilter for CratesFilter {
+    fn write(
+        &self,
+        now: &mut DeferredNow,
+        record: &log::Record,
+        log_line_writer: &dyn LogLineWriter,
+    ) -> std::io::Result<()> {
+        if let Some(module_path) = record.module_path() {
+            if !module_path.contains("sqlx") && record.level() < Level::Warn {
+                log_line_writer.write(now, record)?;
+            }
+        }
+
+        Ok(())
+    }
+}
 
 pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
     let mut logger = Logger::try_with_str(&logger_settings.spec)?;
@@ -19,6 +40,7 @@ pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
                 Naming::Timestamps,
                 Cleanup::KeepLogFiles(logger_settings.keep_log_for_days),
             )
+            .filter(Box::new(CratesFilter {}))
             .append()
     };
 
