@@ -8,10 +8,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::Context;
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
 use solana_sdk::pubkey::{ParsePubkeyError, Pubkey};
 
 use crate::error::{FeeTokenProviderError, UtilsError, UtilsResult};
@@ -202,14 +200,11 @@ pub async fn get_token_symbol_by_mint(mint: &str) -> anyhow::Result<String> {
     let chain_id = "101"; // MAIN NET
     let target = format!("https://cdn.jsdelivr.net/gh/CLBExchange/certified-token-list/{chain_id}/{mint}.json");
 
-    let response: Value = reqwest::get(target).await?.json().await?;
-
     #[derive(Deserialize)]
     struct Response {
         symbol: String,
     }
-
-    let response: Response = serde_json::from_value(response).context("unable to deserialize Value")?;
+    let response: Response = reqwest::get(target).await?.json::<Response>().await?;
 
     Ok(response.symbol)
 }
