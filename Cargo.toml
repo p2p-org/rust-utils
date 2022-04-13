@@ -13,6 +13,7 @@ diesel = { version = "1.4", features = ["mysql", "r2d2"] }
 itertools = "0.10"
 flexi_logger = { version = "0.22" }
 log = "0.4"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
 scheduled-thread-pool = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -20,3 +21,6 @@ solana-sdk = "1.10"
 strum = "0.21"
 strum_macros = "0.21"
 thiserror = "1.0"
+
+[dev-dependencies]
+tokio = { version = "1.17", features = ["macros"] }
