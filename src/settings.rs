@@ -40,7 +40,10 @@ where
     read_file_config_or_default(&file, env_prefix)
 }
 
-pub fn read_config_or_fail<T>(env_prefix: &str) -> T {
+pub fn read_config_or_fail<T>(env_prefix: &str) -> T
+where
+    T: DeserializeOwned,
+{
     let file = get_settings_file();
     read_file_config_or_fail(&file, env_prefix)
 }
@@ -56,6 +59,9 @@ where
         .unwrap_or_default()
 }
 
-pub fn read_file_config_or_fail<T>(file: &str, env_prefix: &str) -> T {
+pub fn read_file_config_or_fail<T>(file: &str, env_prefix: &str) -> T
+where
+    T: DeserializeOwned,
+{
     try_read_file_config::<T, ConfigError>(file, env_prefix).expect("unable to read config")
 }
