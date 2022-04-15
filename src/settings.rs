@@ -3,6 +3,7 @@ use serde::de::DeserializeOwned;
 
 pub static DEFAULT_SETTINGS_FILE: &str = "settings.toml";
 
+/// Returns settings file name from first argument (args[1]) or a default file name "settings.toml"
 pub fn get_settings_file() -> String {
     std::env::args()
         .nth(1)
