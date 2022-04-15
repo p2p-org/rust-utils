@@ -21,6 +21,7 @@ solana-sdk = "1.10"
 strum = "0.21"
 strum_macros = "0.21"
 thiserror = "1.0"
+config = { version = "0.13", features = ["toml"] }
 
 [dev-dependencies]
 tokio = { version = "1.17", features = ["macros"] }
