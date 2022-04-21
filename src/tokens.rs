@@ -49,7 +49,13 @@ pub struct FeeToken {
 }
 
 impl FeeToken {
-    pub fn new(name: impl Into<String>, code: impl Into<String>, mint: Pubkey, account: Pubkey, exchange_rate: f64) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        code: impl Into<String>,
+        mint: Pubkey,
+        account: Pubkey,
+        exchange_rate: f64,
+    ) -> Self {
         Self {
             name: name.into(),
             code: code.into(),
@@ -113,7 +119,7 @@ impl FeeTokenProvider {
         let tmp_path_suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|err| {
-                FeeTokenProviderError::PoisonError(format!("Failed to create suffix for temporary file: {err}",))
+                FeeTokenProviderError::PoisonError(format!("Failed to create suffix for temporary file: {err}"))
             })?
             .as_millis();
 
@@ -171,10 +177,7 @@ impl FeeTokenProvider {
     }
 
     pub fn read(&self) -> UtilsResult<RwLockReadGuard<HashMap<Pubkey, FeeToken>>> {
-        Ok(self
-            .0
-            .read()
-            .map_err(|_| poison_error())?)
+        Ok(self.0.read().map_err(|_| poison_error())?)
     }
 
     pub fn contains_token(&self, mint: &Pubkey) -> UtilsResult<bool> {
@@ -182,12 +185,32 @@ impl FeeTokenProvider {
     }
 
     pub fn contains_active_token(&self, mint: &Pubkey) -> UtilsResult<bool> {
-        Ok(self.0.read().map_err(|_| poison_error())?.get(mint).map(|token| !token.is_update_failed).unwrap_or(false))
+        Ok(self
+            .0
+            .read()
+            .map_err(|_| poison_error())?
+            .get(mint)
+            .map(|token| !token.is_update_failed)
+            .unwrap_or(false))
     }
 }
 
 fn poison_error() -> FeeTokenProviderError {
     FeeTokenProviderError::PoisonError("FeeTokenProvider".into())
+}
+
+/// Get token symbol by mint for Main net
+pub async fn get_token_symbol_by_mint(mint: &str) -> anyhow::Result<String> {
+    let chain_id = "101"; // MAIN NET
+    let target = format!("https://cdn.jsdelivr.net/gh/CLBExchange/certified-token-list/{chain_id}/{mint}.json");
+
+    #[derive(Deserialize)]
+    struct Response {
+        symbol: String,
+    }
+    let response: Response = reqwest::get(target).await?.json::<Response>().await?;
+
+    Ok(response.symbol)
 }
 
 #[cfg(test)]
@@ -198,6 +221,8 @@ mod tests {
     };
 
     use solana_sdk::pubkey::Pubkey;
+
+    use crate::tokens::get_token_symbol_by_mint;
 
     use super::{FeeToken, FeeTokenProvider};
 
@@ -217,6 +242,30 @@ mod tests {
         }
 
         FeeTokenProvider(Arc::new(RwLock::new(fee_tokens)))
+    }
+
+    #[tokio::test]
+    async fn get_tokens_symbol_by_mint() {
+        assert_eq!(
+            get_token_symbol_by_mint("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs")
+                .await
+                .expect("in test"),
+            "ETH".to_string()
+        );
+
+        assert_eq!(
+            get_token_symbol_by_mint("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+                .await
+                .expect("in test"),
+            "USDC".to_string()
+        );
+
+        assert_eq!(
+            get_token_symbol_by_mint("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E")
+                .await
+                .expect("in test"),
+            "BTC".to_string()
+        );
     }
 
     #[test]
