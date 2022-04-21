@@ -140,8 +140,12 @@ impl FeeTokenProvider {
         Ok(self.0.read().map_err(|_| poison_error())?.is_empty())
     }
 
-    pub fn get(&self, key: &Pubkey) -> UtilsResult<Option<FeeToken>> {
-        Ok(self.0.read().map_err(|_| poison_error())?.get(key).cloned())
+    pub fn get(&self, mint: &Pubkey) -> UtilsResult<Option<FeeToken>> {
+        Ok(self.0.read().map_err(|_| poison_error())?.get(mint).cloned())
+    }
+
+    pub fn get_by_account(&self, account: &Pubkey) -> UtilsResult<Option<FeeToken>> {
+        Ok(self.0.read().map_err(|_| poison_error())?.values().find(|token| token.account == *account).cloned())
     }
 
     pub fn update_exchange_rates(&self, tokens_price: &HashMap<String, f64>) -> UtilsResult<()> {
@@ -173,12 +177,12 @@ impl FeeTokenProvider {
             .map_err(|_| poison_error())?)
     }
 
-    pub fn contains_key(&self, key: &Pubkey) -> UtilsResult<bool> {
-        Ok(self.0.read().map_err(|_| poison_error())?.contains_key(key))
+    pub fn contains_token(&self, mint: &Pubkey) -> UtilsResult<bool> {
+        Ok(self.0.read().map_err(|_| poison_error())?.contains_key(mint))
     }
 
-    pub fn contains_active_token(&self, key: &Pubkey) -> UtilsResult<bool> {
-        Ok(self.0.read().map_err(|_| poison_error())?.get(key).map(|token| !token.is_update_failed).unwrap_or(false))
+    pub fn contains_active_token(&self, mint: &Pubkey) -> UtilsResult<bool> {
+        Ok(self.0.read().map_err(|_| poison_error())?.get(mint).map(|token| !token.is_update_failed).unwrap_or(false))
     }
 }
 
