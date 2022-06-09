@@ -22,23 +22,19 @@ pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
             .append()
     };
 
-    logger
-        .use_utc()
-        .format(|out, _, record| {
-            out.write_fmt(format_args!(
-                "[{}][{}][{}]: {}",
-                Local::now(),
-                record.level(),
-                record.target(),
-                &record.args()
-            ))
-        })
-        .start()?;
+    let logger = logger.use_utc().format(|out, _, record| {
+        out.write_fmt(format_args!(
+            "[{}][{}][{}]: {}",
+            Local::now(),
+            record.level(),
+            record.target(),
+            &record.args()
+        ))
+    });
 
-    log::info!("Logger has been successfully initialized.");
-    if let Some(path) = &logger_settings.path {
-        log::info!("All logs will be stored in the file: {}", path.display());
-    }
+    let logger = sentry_log::SentryLogger::with_dest(logger.build()?.0);
+
+    log::set_boxed_logger(Box::new(logger)).unwrap();
 
     Ok(())
 }
