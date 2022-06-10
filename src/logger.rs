@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use chrono::Local;
-use flexi_logger::{Age, Cleanup, Criterion, Duplicate, FileSpec, Logger, Naming, WriteMode};
+use flexi_logger::{Age, Cleanup, Criterion, DeferredNow, Duplicate, FileSpec, Logger, Naming, WriteMode};
+use log::{kv::source::as_map, Level, Record};
 use serde::Deserialize;
 
 pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
@@ -22,20 +23,66 @@ pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
             .append()
     };
 
-    let logger = logger.use_utc().format(|out, _, record| {
-        out.write_fmt(format_args!(
-            "[{}][{}][{}]: {}",
-            Local::now(),
-            record.level(),
-            record.target(),
-            &record.args()
-        ))
-    });
+    let format_function = if logger_settings.gclogs {
+        gclogs_format
+    } else {
+        output_format
+    };
+
+    let logger = logger.use_utc().format(format_function);
 
     let logger = sentry_log::SentryLogger::with_dest(logger.build()?.0);
 
     log::set_boxed_logger(Box::new(logger)).unwrap();
 
+    Ok(())
+}
+
+fn output_format(
+    w: &mut dyn std::io::Write,
+    _clock: &mut DeferredNow,
+    record: &Record<'_>,
+) -> Result<(), std::io::Error> {
+    w.write_fmt(format_args!(
+        "[{}][{}][{}]: {}",
+        Local::now(),
+        record.level(),
+        record.target(),
+        &record.args()
+    ))
+}
+
+fn gclogs_format(
+    w: &mut dyn std::io::Write,
+    clock: &mut DeferredNow,
+    record: &Record<'_>,
+) -> Result<(), std::io::Error> {
+    let message = record.args().to_string();
+    let timestamp = clock.now().unix_timestamp();
+    let level = match record.level() {
+        Level::Error => "ERROR",
+        Level::Warn => "WARNING",
+        Level::Info => "INFO",
+        Level::Debug | Level::Trace => "DEBUG",
+    };
+    let module = record.module_path();
+    let file = record.file();
+    let line = record.line();
+    let labels = as_map(record.key_values());
+    let json = serde_json::json!({
+        "severity": level,
+        "message": message,
+        "timestampSeconds": timestamp,
+        "logging.googleapis.com/sourceLocation": {
+            "file": file,
+            "line": line,
+        },
+        "logging.googleapis.com/operation": {
+            "producer": module,
+        },
+        "logging.googleapi.com/labels": labels,
+    });
+    serde_json::to_writer(w, &json)?;
     Ok(())
 }
 
@@ -50,6 +97,9 @@ pub struct LoggerSettings {
 
     #[serde(default = "default_keep_log_for_days")]
     pub keep_log_for_days: usize,
+
+    #[serde(default)]
+    pub gclogs: bool,
 }
 
 impl Default for LoggerSettings {
@@ -58,6 +108,7 @@ impl Default for LoggerSettings {
             spec: default_spec(),
             path: None,
             keep_log_for_days: default_keep_log_for_days(),
+            gclogs: false,
         }
     }
 }
