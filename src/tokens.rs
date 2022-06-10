@@ -151,7 +151,13 @@ impl FeeTokenProvider {
     }
 
     pub fn get_by_account(&self, account: &Pubkey) -> UtilsResult<Option<FeeToken>> {
-        Ok(self.0.read().map_err(|_| poison_error())?.values().find(|token| token.account == *account).cloned())
+        Ok(self
+            .0
+            .read()
+            .map_err(|_| poison_error())?
+            .values()
+            .find(|token| token.account == *account)
+            .cloned())
     }
 
     pub fn update_exchange_rates(&self, tokens_price: &HashMap<String, f64>) -> UtilsResult<()> {
