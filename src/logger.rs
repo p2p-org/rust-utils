@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use anyhow::Result;
 use chrono::Local;
 use flexi_logger::{Age, Cleanup, Criterion, DeferredNow, Duplicate, FileSpec, Logger, Naming, WriteMode};
-use log::{kv::source::as_map, Level, Record};
+use log::{Log, kv::source::as_map, Level, Record};
+use sentry::ClientInitGuard;
 use serde::Deserialize;
 
-pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
+pub fn init_logger(logger_settings: LoggerSettings) -> Result<Option<ClientInitGuard>> {
     let mut logger = Logger::try_with_str(&logger_settings.spec)?;
 
     if let Some(path) = &logger_settings.path {
@@ -31,11 +32,21 @@ pub fn init_logger(logger_settings: LoggerSettings) -> Result<()> {
 
     let logger = logger.use_utc().format(format_function);
 
-    let logger = sentry_log::SentryLogger::with_dest(logger.build()?.0);
+    let (logger, sentry_guard): (Box<dyn Log>, _) = if let Some(sentry_url) = logger_settings.sentry_server {
+        (
+            Box::new(sentry_log::SentryLogger::with_dest(logger.build()?.0)),
+            Some(sentry::init((sentry_url, sentry::ClientOptions {
+                release: sentry::release_name!(),
+                ..Default::default()
+            }))),
+        )
+    } else {
+        (logger.build()?.0, None)
+    };
 
-    log::set_boxed_logger(Box::new(logger)).unwrap();
+    log::set_boxed_logger(logger).unwrap();
 
-    Ok(())
+    Ok(sentry_guard)
 }
 
 fn output_format(
@@ -100,6 +111,9 @@ pub struct LoggerSettings {
 
     #[serde(default)]
     pub gclogs: bool,
+
+    #[serde(default)]
+    pub sentry_server: Option<String>,
 }
 
 impl Default for LoggerSettings {
@@ -109,6 +123,7 @@ impl Default for LoggerSettings {
             path: None,
             keep_log_for_days: default_keep_log_for_days(),
             gclogs: false,
+            sentry_server: None,
         }
     }
 }
