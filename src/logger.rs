@@ -69,7 +69,7 @@ fn gclogs_format(
     record: &Record<'_>,
 ) -> Result<(), std::io::Error> {
     let message = record.args().to_string();
-    let timestamp = clock.now().unix_timestamp();
+    let now = clock.now();
     let level = match record.level() {
         Level::Error => "ERROR",
         Level::Warn => "WARNING",
@@ -83,7 +83,10 @@ fn gclogs_format(
     let json = serde_json::json!({
         "severity": level,
         "message": message,
-        "timestampSeconds": timestamp,
+        "timestamp": {
+            "seconds": now.unix_timestamp(),
+            "nanos": now.nanosecond(),
+        },
         "logging.googleapis.com/sourceLocation": {
             "file": file,
             "line": line,
