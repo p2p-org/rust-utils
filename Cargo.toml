@@ -24,6 +24,9 @@ strum = "0.21"
 strum_macros = "0.21"
 thiserror = "1.0"
 config = { version = "0.13", features = ["toml"] }
+solana-client = "1.10"
+borsh = "0.9.3"
 
 [dev-dependencies]
 tokio = { version = "1.17", features = ["macros"] }
+claim = "0.5.0"
