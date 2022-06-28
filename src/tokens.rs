@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use std::{
     collections::HashMap,
     fs::File,
@@ -10,6 +11,7 @@ use std::{
 
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::{ParsePubkeyError, Pubkey};
 
 use crate::error::{FeeTokenProviderError, UtilsError, UtilsResult};
@@ -25,7 +27,7 @@ fn deserialize_pubkey<'de, D>(deserializer: D) -> Result<Pubkey, D::Error>
 where
     D: Deserializer<'de>,
 {
-    Pubkey::from_str(String::deserialize(deserializer)?.as_str()).map_err(|err| match err {
+    Pubkey::from_str(<String as Deserialize>::deserialize(deserializer)?.as_str()).map_err(|err| match err {
         ParsePubkeyError::WrongSize => serde::de::Error::custom("String is the wrong size"),
         ParsePubkeyError::Invalid => serde::de::Error::custom("Invalid Base58 string"),
     })
@@ -205,8 +207,9 @@ fn poison_error() -> FeeTokenProviderError {
     FeeTokenProviderError::PoisonError("FeeTokenProvider".into())
 }
 
-/// Get token symbol by mint for Main net
-pub async fn get_token_symbol_by_mint(mint: &str) -> anyhow::Result<String> {
+/// Get token symbol by mint for token-list
+/// Deprecated since 2022-06
+pub async fn get_token_symbol_by_mint_from_json(mint: &str) -> anyhow::Result<String> {
     let chain_id = "101"; // MAIN NET
     let target = format!("https://cdn.jsdelivr.net/gh/CLBExchange/certified-token-list/{chain_id}/{mint}.json");
 
@@ -219,16 +222,53 @@ pub async fn get_token_symbol_by_mint(mint: &str) -> anyhow::Result<String> {
     Ok(response.symbol)
 }
 
+/// Get token symbol from Metaplex Fungible Token Metadata
+/// https://docs.metaplex.com/programs/token-metadata/accounts#metadata
+/// Recommended method since 2022-06
+pub async fn get_token_symbol_by_mint_from_metadata(client: &RpcClient, mint: &Pubkey) -> anyhow::Result<String> {
+    let metadata_program_id = solana_sdk::pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
+    let (metadata_address, _) = Pubkey::find_program_address(
+        &[b"metadata", metadata_program_id.as_ref(), mint.as_ref()],
+        &metadata_program_id,
+    );
+    let metadata = client.get_account_data(&metadata_address).await?;
+
+    // The on-chain symbol of the token, limited to 10 bytes
+    // Offset - 101, size 14
+    let symbol = String::try_from_slice(&metadata[101..115])?;
+
+    Ok(symbol.trim_end_matches('\0').to_owned())
+}
+
+pub async fn get_token_symbol_by_mint(client: &RpcClient, mint: &Pubkey) -> anyhow::Result<String> {
+    match get_token_symbol_by_mint_from_metadata(client, mint).await {
+        Ok(symbol) => Ok(symbol),
+        Err(error) => {
+            log::warn!(
+                "unable to get token name for mint '{}' from on-chain metadata, fallback to token-list: {error}",
+                mint
+            );
+            get_token_symbol_by_mint_from_json(&mint.to_string()).await
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use claim::{assert_err, assert_ok_eq};
+    use solana_client::nonblocking::rpc_client::RpcClient;
     use std::{
         collections::HashMap,
+        str::FromStr,
         sync::{Arc, RwLock},
     };
 
     use solana_sdk::pubkey::Pubkey;
 
-    use crate::tokens::get_token_symbol_by_mint;
+    use crate::tokens::{
+        get_token_symbol_by_mint, get_token_symbol_by_mint_from_json, get_token_symbol_by_mint_from_metadata,
+    };
 
     use super::{FeeToken, FeeTokenProvider};
 
@@ -251,26 +291,109 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_tokens_symbol_by_mint() {
-        assert_eq!(
-            get_token_symbol_by_mint("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs")
-                .await
-                .expect("in test"),
+    async fn get_tokens_symbol_by_mint_from_json() {
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_json("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs").await,
             "ETH".to_string()
         );
 
-        assert_eq!(
-            get_token_symbol_by_mint("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-                .await
-                .expect("in test"),
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_json("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").await,
             "USDC".to_string()
         );
 
-        assert_eq!(
-            get_token_symbol_by_mint("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E")
-                .await
-                .expect("in test"),
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_json("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E").await,
             "BTC".to_string()
+        );
+
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_json("EzfnjRUKtc5vweE1GCLdHV4MkDQ3ebSpQXLobSKgQ9RB").await,
+            "CSM".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn get_tokens_symbol_by_mint_from_metadata() {
+        let solana_client = RpcClient::new("https://api.mainnet-beta.solana.com".into());
+
+        // token-list has ETH where as metadata hs WETH
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_metadata(
+                &solana_client,
+                &Pubkey::from_str("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs").unwrap()
+            )
+            .await,
+            "WETH".to_string()
+        );
+
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_metadata(
+                &solana_client,
+                &Pubkey::from_str("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").unwrap()
+            )
+            .await,
+            "USDC".to_string()
+        );
+
+        assert_ok_eq!(
+            get_token_symbol_by_mint_from_metadata(
+                &solana_client,
+                &Pubkey::from_str("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E").unwrap()
+            )
+            .await,
+            "BTC".to_string()
+        );
+
+        // This mint doesn't have metadata
+        assert_err!(
+            get_token_symbol_by_mint_from_metadata(
+                &solana_client,
+                &Pubkey::from_str("EzfnjRUKtc5vweE1GCLdHV4MkDQ3ebSpQXLobSKgQ9RB").unwrap()
+            )
+            .await
+        );
+    }
+
+    #[tokio::test]
+    async fn get_tokens_symbol_by_mint_with_fallback() {
+        let solana_client = RpcClient::new("https://api.mainnet-beta.solana.com".into());
+
+        // token-list has ETH where as metadata hs WETH
+        assert_ok_eq!(
+            get_token_symbol_by_mint(
+                &solana_client,
+                &Pubkey::from_str("7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs").unwrap()
+            )
+            .await,
+            "WETH".to_string()
+        );
+
+        assert_ok_eq!(
+            get_token_symbol_by_mint(
+                &solana_client,
+                &Pubkey::from_str("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").unwrap()
+            )
+            .await,
+            "USDC".to_string()
+        );
+
+        assert_ok_eq!(
+            get_token_symbol_by_mint(
+                &solana_client,
+                &Pubkey::from_str("9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E").unwrap()
+            )
+            .await,
+            "BTC".to_string()
+        );
+
+        assert_ok_eq!(
+            get_token_symbol_by_mint(
+                &solana_client,
+                &Pubkey::from_str("EzfnjRUKtc5vweE1GCLdHV4MkDQ3ebSpQXLobSKgQ9RB").unwrap()
+            )
+            .await,
+            "CSM".to_string()
         );
     }
 
