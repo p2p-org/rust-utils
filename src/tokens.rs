@@ -16,6 +16,8 @@ use solana_sdk::pubkey::{ParsePubkeyError, Pubkey};
 
 use crate::error::{FeeTokenProviderError, UtilsError, UtilsResult};
 
+static METADATA_PROGRAM_ID: Pubkey = solana_sdk::pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
 fn serialize_pubkey<S>(input: &Pubkey, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -226,11 +228,9 @@ pub async fn get_token_symbol_by_mint_from_json(mint: &str) -> anyhow::Result<St
 /// https://docs.metaplex.com/programs/token-metadata/accounts#metadata
 /// Recommended method since 2022-06
 pub async fn get_token_symbol_by_mint_from_metadata(client: &RpcClient, mint: &Pubkey) -> anyhow::Result<String> {
-    let metadata_program_id = solana_sdk::pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-
     let (metadata_address, _) = Pubkey::find_program_address(
-        &[b"metadata", metadata_program_id.as_ref(), mint.as_ref()],
-        &metadata_program_id,
+        &[b"metadata", METADATA_PROGRAM_ID.as_ref(), mint.as_ref()],
+        &METADATA_PROGRAM_ID,
     );
     let metadata = client.get_account_data(&metadata_address).await?;
 

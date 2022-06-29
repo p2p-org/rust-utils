@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use chrono::Local;
 use flexi_logger::{Age, Cleanup, Criterion, DeferredNow, Duplicate, FileSpec, Logger, Naming, WriteMode};
-use log::{Log, kv::source::as_map, Level, Record};
+use log::{kv::source::as_map, Level, Log, Record};
 use sentry::ClientInitGuard;
 use serde::Deserialize;
 
