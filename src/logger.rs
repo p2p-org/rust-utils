@@ -44,7 +44,12 @@ pub fn init_logger(logger_settings: LoggerSettings) -> Result<Option<ClientInitG
         (logger.build()?.0, None)
     };
 
-    log::set_boxed_logger(logger).unwrap();
+    log::set_boxed_logger(logger).expect("Unable to set boxed logger");
+
+    log::info!("Logger has been successfully initialized.");
+    if let Some(path) = &logger_settings.path {
+        log::info!("All logs will be stored in the file: {}", path.display());
+    }
 
     Ok(sentry_guard)
 }
