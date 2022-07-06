@@ -2633,7 +2633,6 @@ dependencies = [
  "config",
  "diesel",
  "flexi_logger",
- "itertools",
  "log",
  "reqwest",
  "scheduled-thread-pool",
