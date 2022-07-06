@@ -1,40 +1,43 @@
 [package]
+edition = "2021"
 name = "rust-utils"
 version = "0.3.0"
-edition = "2021"
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
 anyhow = { version = "1.0.56", optional = true }
+borsh = { version = "0.9.3", optional = true }
 chrono = { version = "0.4", optional = true }
+config = { version = "0.13", features = ["toml"], optional = true }
 diesel = { version = "1.4", features = ["mysql", "r2d2"], optional = true }
 flexi_logger = { version = "0.22", optional = true }
-log = { version = "0.4", features = ["kv_unstable", "kv_unstable_serde"], optional = true }
+log = { version = "0.4", features = [
+  "kv_unstable",
+  "kv_unstable_serde",
+], optional = true }
 reqwest = { version = "0.11", features = ["blocking", "json"], optional = true }
 scheduled-thread-pool = { versino = "0.2", optional = true }
-sentry-log = { version = "0.26.0", optional = true }
 sentry = { version = "0.26.0", optional = true }
+sentry-log = { version = "0.26.0", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+solana-client = { version = "1.10", optional = true }
 solana-sdk = { version = "1.10", optional = true }
 strum = { version = "0.21", optional = true }
 strum_macros = { version = "0.21", optional = true }
 thiserror = { version = "1.0", optional = true }
-config = { version = "0.13", features = ["toml"], optional = true }
-solana-client = { version = "1.10", optional = true }
-borsh = { version = "0.9.3", optional = true }
 
 [dev-dependencies]
-tokio = { version = "1.17", features = ["macros"] }
 claim = "0.5.0"
+tokio = { version = "1.17", features = ["macros"] }
 
 [features]
-default = ["db", "settings", "tokens", "logger", "macros"]
 db = ["diesel", "scheduled-thread-pool"]
+default = ["db", "settings", "tokens", "logger", "macros"]
+error = ["strum", "strum_macros", "thiserror"]
+logger = ["sentry", "sentry-log", "log", "flexi_logger", "anyhow", "chrono"]
+macros = []
 settings = ["config"]
 tokens = ["error", "borsh", "solana-client", "solana-sdk", "reqwest", "anyhow"]
-logger = ["sentry", "sentry-log", "log", "flexi_logger", "anyhow", "chrono"]
-error = ["strum", "strum_macros", "thiserror"]
-macros = []
