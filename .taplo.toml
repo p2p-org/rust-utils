@@ -1,0 +1,4 @@
+[formatting]
+column_width = 90
+compact_arrays = true
+reorder_keys = true

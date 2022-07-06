@@ -9,7 +9,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::{ParsePubkeyError, Pubkey};
@@ -136,7 +135,7 @@ impl FeeTokenProvider {
             .iter()
             .map(|(_, fee_token)| fee_token)
             .cloned()
-            .collect_vec();
+            .collect::<Vec<_>>();
 
         let contents = serde_json::to_string_pretty(&contents)?;
 
