@@ -86,12 +86,12 @@ fn gclogs_format(
     let line = record.line();
     let labels = as_map(record.key_values());
     let json = serde_json::json!({
-        "severity": level,
         "message": message,
         "timestamp": {
             "seconds": now.unix_timestamp(),
             "nanos": now.nanosecond(),
         },
+        "logging.googleapis.com/severity": level,
         "logging.googleapis.com/sourceLocation": {
             "file": file,
             "line": line,
@@ -99,7 +99,7 @@ fn gclogs_format(
         "logging.googleapis.com/operation": {
             "producer": module,
         },
-        "logging.googleapi.com/labels": labels,
+        "logging.googleapis.com/labels": labels,
     });
     serde_json::to_writer(w, &json)?;
     Ok(())
