@@ -85,7 +85,7 @@ pub enum SettingsError {
 ///
 /// # Example:
 /// ```
-/// settings_impl! {
+/// impl_settings! {
 ///     #[derive(Debug, Deserialize, PartialEq, Eq)]
 ///     pub struct ExampleSettings {
 ///         #[serde(default = "ExampleSettings::default_field_1")]
@@ -108,7 +108,7 @@ pub enum SettingsError {
 /// }
 /// ```
 #[macro_export]
-macro_rules! settings_impl {
+macro_rules! impl_settings {
     {$(
         $( #[ $attr:meta ] )*
         $vis:vis struct $name:ident { $(
@@ -194,6 +194,47 @@ macro_rules! settings_impl {
     )*};
 }
 
+#[macro_export]
+macro_rules! impl_db_settings {
+    { $default_url:expr } => {
+    #[serde_with::serde_as]
+    #[derive(Debug, Deserialize, PartialEq, Eq)]
+    pub struct DbSettings {
+        #[serde(default = "DbSettings::default_url")]
+        pub url: String,
+        #[serde(default = "DbSettings::default_pool_size")]
+        pub pool_size: u32,
+        #[serde(rename = "connect_timeout_ms", default = "DbSettings::default_connect_timeout")]
+        #[serde_as(as = "serde_with::DurationMilliSeconds")]
+        pub connect_timeout: std::time::Duration,
+    }
+
+    impl Default for DbSettings {
+        fn default() -> Self {
+            Self {
+                url: Self::default_url(),
+                pool_size: Self::default_pool_size(),
+                connect_timeout: Self::default_connect_timeout(),
+            }
+        }
+    }
+
+    impl DbSettings {
+        fn default_url() -> String {
+            String::from($default_url)
+        }
+
+        fn default_pool_size() -> u32 {
+            10
+        }
+
+        fn default_connect_timeout() -> std::time::Duration {
+            std::time::Duration::from_secs(60)
+        }
+    }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -216,7 +257,10 @@ mod tests {
         "Hello world".into()
     }
 
-    settings_impl! {
+    static DB_URL: &str = "https://test_url.com";
+    impl_db_settings! { DB_URL }
+
+    impl_settings! {
         #[derive(Debug, Deserialize, PartialEq, Eq)]
         pub struct TestSettings {
             #[serde(default = "TestSettings::default_field_1")]
@@ -226,7 +270,10 @@ mod tests {
             pub field_2: String => default_field_2(),
 
             #[serde(default = "TestSettings::default_logger")]
-            pub logger: LoggerSettings => LoggerSettings::default()
+            pub logger: LoggerSettings => LoggerSettings::default(),
+
+            #[serde(default = "TestSettings::default_db_settings")]
+            pub db_settings: DbSettings => DbSettings::default()
         }
     }
 
@@ -239,9 +286,11 @@ mod tests {
             field_1: default_field_1(),
             field_2: default_field_2(),
             logger: LoggerSettings::default(),
+            db_settings: DbSettings::default(),
         };
 
-        assert_eq!(expected_settings, default_settings)
+        assert_eq!(expected_settings, default_settings);
+        assert_eq!(&expected_settings.db_settings.url, DB_URL);
     }
 
     #[test]
@@ -260,6 +309,7 @@ mod tests {
                 field_1: 2,
                 field_2: "Hello from environment".into(),
                 logger: LoggerSettings::default(),
+                db_settings: DbSettings::default(),
             }
         };
 
@@ -280,6 +330,7 @@ mod tests {
                 field_1: 2,
                 field_2: default_field_2(),
                 logger: LoggerSettings::default(),
+                db_settings: DbSettings::default(),
             }
         };
 
