@@ -5,12 +5,14 @@ use thiserror::Error;
 pub static DEFAULT_SETTINGS_FILE: &str = "settings.toml";
 
 /// Returns settings file name from first argument (args[1]) or a default file name "settings.toml"
+/// #[deprecated(note = "use impl_settings")]
 pub fn get_settings_file() -> String {
     std::env::args()
         .nth(1)
         .unwrap_or_else(|| DEFAULT_SETTINGS_FILE.to_owned())
 }
 
+/// #[deprecated(note = "use impl_settings")]
 pub fn try_read_config<T, E>(env_prefix: &str) -> Result<T, E>
 where
     T: DeserializeOwned,
@@ -20,6 +22,7 @@ where
     try_read_file_config(&file, env_prefix)
 }
 
+/// #[deprecated(note = "use impl_settings")]
 pub fn try_read_file_config<T, E>(file: &str, env_prefix: &str) -> Result<T, E>
 where
     T: DeserializeOwned,
@@ -33,6 +36,7 @@ where
         .map_err(Into::into)
 }
 
+/// #[deprecated(note = "use impl_settings")]
 pub fn read_config_or_default<T>(env_prefix: &str) -> T
 where
     T: DeserializeOwned + Default,
@@ -41,6 +45,7 @@ where
     read_file_config_or_default(&file, env_prefix)
 }
 
+/// #[deprecated(note = "use impl_settings")]
 pub fn read_config_or_fail<T>(env_prefix: &str) -> T
 where
     T: DeserializeOwned,
@@ -49,6 +54,7 @@ where
     read_file_config_or_fail(&file, env_prefix)
 }
 
+/// #[deprecated(note = "use impl_settings")]
 pub fn read_file_config_or_default<T>(file: &str, env_prefix: &str) -> T
 where
     T: DeserializeOwned + Default,
@@ -60,6 +66,7 @@ where
         .unwrap_or_default()
 }
 
+/// #[deprecated(note = "use impl_settings")]
 pub fn read_file_config_or_fail<T>(file: &str, env_prefix: &str) -> T
 where
     T: DeserializeOwned,
