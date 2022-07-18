@@ -194,6 +194,12 @@ macro_rules! impl_settings {
     )*};
 }
 
+/// Macro for simple initialization of DbSettings structures by DB url.
+///
+/// # Example:
+/// ```
+/// impl_db_settings! { "https://example.url" }
+/// ```
 #[macro_export]
 macro_rules! impl_db_settings {
     { $default_url:expr } => {
