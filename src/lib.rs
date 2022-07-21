@@ -10,3 +10,6 @@ pub mod macros;
 pub mod settings;
 #[cfg(feature = "tokens")]
 pub mod tokens;
+
+#[cfg(feature = "settings")]
+pub extern crate paste;
