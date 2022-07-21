@@ -131,7 +131,7 @@ macro_rules! impl_settings {
             $vis_f $field: $type,
         )+}
 
-        paste::paste! {
+        $crate::paste::paste! {
             impl Default for $name {
                 fn default() -> Self {
                     Self {
@@ -143,7 +143,7 @@ macro_rules! impl_settings {
             }
         }
 
-        paste::paste! {
+        $crate::paste::paste! {
             impl $name {
                 $(
                     fn [<default_ $field>]() -> $type {
