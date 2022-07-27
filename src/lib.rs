@@ -12,4 +12,6 @@ pub mod settings;
 pub mod tokens;
 
 #[cfg(feature = "settings")]
+pub extern crate config;
+#[cfg(feature = "settings")]
 pub extern crate paste;
