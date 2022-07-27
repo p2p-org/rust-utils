@@ -189,13 +189,13 @@ macro_rules! impl_settings {
             }
 
             #[allow(dead_code)]
-            pub fn try_new() -> Result<Self,SettingsError> {
+            pub fn try_new() -> Result<Self, $crate::settings::SettingsError> {
                 Self::try_read_config(APP_ENV_PREFIX)
             }
 
             #[cfg(not(crate_name = "rust-utils"))]
             pub fn new() -> Self {
-                Self::try_read_config::<SettingsError>(APP_ENV_PREFIX).unwrap_or_default()
+                Self::try_read_config::<$crate::settings::SettingsError>(APP_ENV_PREFIX).unwrap_or_default()
             }
         }
     )*};
