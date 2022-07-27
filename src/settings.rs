@@ -91,7 +91,7 @@ pub enum SettingsError {
 /// default value after the type with separator `=>` for example `pub field_name: TypeName => <default_value>`
 ///
 /// # Example:
-/// ```
+/// ```ignore
 /// impl_settings! {
 ///     #[derive(Debug, Deserialize, PartialEq, Eq)]
 ///     pub struct ExampleSettings {
@@ -168,7 +168,7 @@ macro_rules! impl_settings {
 
             pub fn try_read_config<E>(env_prefix: &str) -> Result<Self, E>
             where
-                E: From<config::ConfigError>,
+                E: From<$crate::config::ConfigError>,
             {
                 let file = Self::get_settings_file();
                 Self::try_read_file_config(&file, env_prefix)
@@ -177,25 +177,25 @@ macro_rules! impl_settings {
 
             pub fn try_read_file_config<E>(file: &str, env_prefix: &str) -> Result<Self, E>
             where
-                E: From<config::ConfigError>,
+                E: From<$crate::config::ConfigError>,
             {
-                config::Config::builder()
-                    .add_source(config::File::with_name(file).required(false))
-                    .add_source(config::Environment::with_prefix(env_prefix)
+                $crate::config::Config::builder()
+                    .add_source($crate::config::File::with_name(file).required(false))
+                    .add_source($crate::config::Environment::with_prefix(env_prefix)
                     .separator("__"))
                     .build()
-                    .and_then(config::Config::try_deserialize)
+                    .and_then($crate::config::Config::try_deserialize)
                     .map_err(Into::into)
             }
 
             #[allow(dead_code)]
-            pub fn try_new() -> Result<Self,SettingsError> {
+            pub fn try_new() -> Result<Self, $crate::settings::SettingsError> {
                 Self::try_read_config(APP_ENV_PREFIX)
             }
 
             #[cfg(not(crate_name = "rust-utils"))]
             pub fn new() -> Self {
-                Self::try_read_config::<SettingsError>(APP_ENV_PREFIX).unwrap_or_default()
+                Self::try_read_config::<$crate::settings::SettingsError>(APP_ENV_PREFIX).unwrap_or_default()
             }
         }
     )*};
@@ -204,7 +204,7 @@ macro_rules! impl_settings {
 /// Macro for simple initialization of DbSettings structures by DB url.
 ///
 /// # Example:
-/// ```
+/// ```ignore
 /// impl_db_settings! { "https://example.url" }
 /// ```
 #[macro_export]
