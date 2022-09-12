@@ -15,5 +15,3 @@ pub mod tokens;
 pub extern crate config;
 #[cfg(feature = "settings")]
 pub extern crate paste;
-
-pub mod deserialize_duration;
