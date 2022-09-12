@@ -48,7 +48,7 @@ impl Deref for DbConnectionRef<'_> {
     fn deref(&self) -> &Self::Target {
         match self {
             DbConnectionRef::Simple(conn) => conn,
-            DbConnectionRef::Pooled(pooled) => &*pooled,
+            DbConnectionRef::Pooled(pooled) => pooled,
         }
     }
 }

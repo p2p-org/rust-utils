@@ -252,7 +252,7 @@ macro_rules! impl_db_settings {
 mod tests {
     use std::sync::Mutex;
 
-    use crate::{logger::LoggerSettings, settings::SettingsError};
+    use crate::logger::LoggerSettings;
     use lazy_static::lazy_static;
     use serde::Deserialize;
 
