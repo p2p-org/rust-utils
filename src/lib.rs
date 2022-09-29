@@ -8,6 +8,8 @@ pub mod logger;
 pub mod macros;
 #[cfg(feature = "settings")]
 pub mod settings;
+#[cfg(feature = "telemetry")]
+pub mod telemetry;
 #[cfg(feature = "tokens")]
 pub mod tokens;
 
