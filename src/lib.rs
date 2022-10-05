@@ -12,6 +12,8 @@ pub mod settings;
 pub mod telemetry;
 #[cfg(feature = "tokens")]
 pub mod tokens;
+#[cfg(feature = "types")]
+pub mod types;
 
 #[cfg(feature = "settings")]
 pub extern crate config;
