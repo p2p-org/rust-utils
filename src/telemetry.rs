@@ -8,6 +8,7 @@
 //! use rust_utils::telemetry::Telemetry;
 //! use rust_utils::telemetry::TracingSettings;
 //!
+//! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let tracing = TracingSettings::default(); // or use your own settings
 //!
@@ -23,8 +24,7 @@
 //! ```
 
 use anyhow::Context;
-use opentelemetry::{global, runtime};
-use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry::{global, runtime, sdk::propagation::TraceContextPropagator};
 use sentry::ClientInitGuard;
 use serde::Deserialize;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
