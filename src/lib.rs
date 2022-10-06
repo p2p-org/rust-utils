@@ -13,7 +13,11 @@ pub mod telemetry;
 #[cfg(feature = "tokens")]
 pub mod tokens;
 
+#[cfg(feature = "crypto")]
+pub mod crypto;
+
 #[cfg(feature = "settings")]
 pub extern crate config;
+
 #[cfg(feature = "settings")]
 pub extern crate paste;
