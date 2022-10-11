@@ -15,6 +15,7 @@ config = { version = "0.13", features = ["toml"], optional = true }
 diesel = { version = "1.4", features = ["mysql", "r2d2"], optional = true }
 ed25519-dalek = { version = "1.0.1", optional = true }
 flexi_logger = { version = "0.22", optional = true }
+jsonrpsee = { version = "0.15.1", features = ["http-server", "http-client"], optional = true }
 log = { version = "0.4", features = [
   "kv_unstable",
   "kv_unstable_serde",
@@ -36,6 +37,7 @@ solana-sdk = { version = "1.14", optional = true }
 strum = { version = "0.21", optional = true }
 strum_macros = { version = "0.21", optional = true }
 thiserror = { version = "1.0", optional = true }
+tokio = { version = "1.17", features = ["full"], optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-bunyan-formatter = { version = "0.3", optional = true  }
 tracing-log = { version = "0.1", optional = true  }
@@ -46,7 +48,6 @@ tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"], o
 [dev-dependencies]
 claim = "0.5.0"
 lazy_static = "1.4.0"
-tokio = { version = "1.17", features = ["full"] }
 
 [features]
 db = ["diesel", "scheduled-thread-pool"]
@@ -58,3 +59,4 @@ settings = ["config", "log", "serde_with", "paste", "thiserror" ]
 tokens = ["error", "borsh", "solana-client", "solana-sdk", "reqwest", "anyhow", "log" ]
 telemetry = ["tracing", "opentelemetry", "opentelemetry-jaeger", "tracing-opentelemetry", "tracing-subscriber", "tracing-bunyan-formatter", "tracing-log", "tracing-stackdriver", "sentry-tracing", "sentry"]
 crypto = [ "ed25519-dalek", "borsh", "bs58", "rand" ]
+server = [ "jsonrpsee", "tokio", "log" ]
