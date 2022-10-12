@@ -16,6 +16,9 @@ pub mod tokens;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 
+#[cfg(feature = "server")]
+pub mod server;
+
 #[cfg(feature = "settings")]
 pub extern crate config;
 
