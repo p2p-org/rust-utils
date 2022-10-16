@@ -49,9 +49,19 @@ impl Telemetry {
     ) -> anyhow::Result<(Self, impl Subscriber + Sync + Send)> {
         global::set_text_map_propagator(TraceContextPropagator::default());
 
-        let tracer = opentelemetry_jaeger::new_agent_pipeline()
-            .with_service_name(&name)
-            .install_batch(runtime::Tokio)?;
+        let tracer = match tracing_settings.jaeger_collector {
+            Some(collector_endpoint) => {
+                opentelemetry_jaeger::new_collector_pipeline()
+                    .with_service_name(&name)
+                    .with_endpoint(collector_endpoint)
+                    .install_batch(runtime::Tokio)?
+            }
+            None => {
+                opentelemetry_jaeger::new_agent_pipeline()
+                    .with_service_name(&name)
+                    .install_batch(runtime::Tokio)?
+            }
+        };
         let tracer = tracing_opentelemetry::layer().with_tracer(tracer);
 
         let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&tracing_settings.spec));
@@ -119,6 +129,9 @@ pub struct TracingSettings {
 
     #[serde(default)]
     pub sentry_server: Option<String>,
+
+    #[serde(default)]
+    pub jaeger_collector: Option<String>,
 }
 
 impl Default for TracingSettings {
@@ -127,6 +140,7 @@ impl Default for TracingSettings {
             spec: default_spec(),
             gclogs: false,
             sentry_server: None,
+            jaeger_collector: None,
         }
     }
 }
