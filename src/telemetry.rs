@@ -52,8 +52,17 @@ impl Telemetry {
         let tracer = match tracing_settings.jaeger_collector {
             Some(collector_endpoint) => {
                 opentelemetry_jaeger::new_collector_pipeline()
+                    .with_reqwest()
                     .with_service_name(&name)
                     .with_endpoint(collector_endpoint)
+                    .install_batch(runtime::Tokio)?
+            }
+            // No explicit Jaeger collector set up, but we have environment
+            // obviously set up to Jaeger collector
+            None if std::env::var("OTEL_EXPORTER_JAEGER_ENDPOINT").is_ok() => {
+                opentelemetry_jaeger::new_collector_pipeline()
+                    .with_reqwest()
+                    .with_service_name(&name)
                     .install_batch(runtime::Tokio)?
             }
             None => {
