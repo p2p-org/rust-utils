@@ -1,45 +1,60 @@
-use jsonrpsee::{
-    core::Error,
-    http_server::{AccessControl, AccessControlBuilder, HttpServer, HttpServerBuilder, HttpServerHandle},
-    RpcModule,
-};
+
 use std::net::{SocketAddr, TcpListener};
-use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
+use jsonrpsee::server::{AllowHosts, RpcModule, ServerBuilder, ServerHandle};
+use jsonrpsee::core::error::Error;
+use tokio::{net::ToSocketAddrs, signal};
+use tower_http::cors::CorsLayer;
 
 pub struct Server {
     address: SocketAddr,
-    handle: HttpServerHandle,
+    handle: ServerHandle,
 }
 
 impl Server {
+    /// Create and start a new server from TcpListener
     pub fn with_listener<Ctx>(
         listener: impl Into<TcpListener>,
-        service: RpcModule<Ctx>,
-        allow_all: bool,
-    ) -> Result<Self, Error> {
-        let server = Self::builder(allow_all).build_from_tcp(listener)?;
-        Self::start(server, service)
+        service: RpcModule<Ctx>) -> Result<Self, Error>
+    {
+        let cors = CorsLayer::permissive();
+        let middleware = tower::ServiceBuilder::new().layer(cors);
+
+        let server = ServerBuilder::default()
+            .set_host_filtering(AllowHosts::Any)
+            .set_middleware(middleware)
+            .build_from_tcp(listener)?;
+
+        Ok(Self {
+            address: server.local_addr()?,
+            handle: server.start(service)?,
+        })
     }
 
+    /// Create and start a new server from TcpListener
     pub async fn with_address<Ctx>(
         address: impl ToSocketAddrs,
         service: RpcModule<Ctx>,
-        allow_all: bool,
     ) -> Result<Self, Error> {
-        let server = Self::builder(allow_all).build(address).await?;
-        Self::start(server, service)
+        let cors = CorsLayer::permissive();
+        let middleware = tower::ServiceBuilder::new().layer(cors);
+
+        let server = ServerBuilder::default()
+            .set_host_filtering(AllowHosts::Any)
+            .set_middleware(middleware)
+            .build(address).await?;
+
+        Ok(Self {
+            address: server.local_addr()?,
+            handle: server.start(service)?,
+        })
     }
 
     pub async fn stop(self) -> Result<(), Error> {
-        self.handle
-            .stop()?
-            .await
-            .map_err(|error| Error::Custom(format!("server failed to stop: {error:?}")))
+        self.handle.stop()?;
+        self.handle.stopped().await;
+        Ok(())
     }
 
-    pub fn spawn(self) -> JoinHandle<()> {
-        tokio::spawn(self.handle)
-    }
 
     pub async fn wait(self) {
         log::info!(
@@ -68,26 +83,5 @@ impl Server {
 
     pub fn address(&self) -> &SocketAddr {
         &self.address
-    }
-
-    fn builder(allow_all: bool) -> HttpServerBuilder {
-        let acl = if allow_all {
-            AccessControlBuilder::new()
-                .allow_all_headers()
-                .allow_all_origins()
-                .allow_all_hosts()
-                .build()
-        } else {
-            AccessControl::default()
-        };
-
-        HttpServerBuilder::default().set_access_control(acl)
-    }
-
-    fn start<Ctx>(server: HttpServer, service: RpcModule<Ctx>) -> Result<Self, Error> {
-        Ok(Self {
-            address: server.local_addr()?,
-            handle: server.start(service)?,
-        })
     }
 }
