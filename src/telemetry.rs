@@ -139,6 +139,9 @@ pub struct TracingSettings {
 
     #[serde(default)]
     pub sentry_server: Option<String>,
+
+    #[serde(default)]
+    pub jaeger_collector: Option<String>,
 }
 
 impl Default for TracingSettings {
@@ -147,6 +150,7 @@ impl Default for TracingSettings {
             spec: default_spec(),
             gclogs: false,
             sentry_server: None,
+            jaeger_collector: None,
         }
     }
 }
