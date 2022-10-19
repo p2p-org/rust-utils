@@ -23,7 +23,9 @@
 //! }
 //! ```
 
+use std::str::FromStr;
 use anyhow::Context as anyhowContext;
+use http::header::HeaderName;
 use jsonrpsee::http_client::{HeaderMap, HeaderValue, Middleware};
 use opentelemetry::{global, runtime, sdk::propagation::TraceContextPropagator};
 use opentelemetry::propagation::Injector;
@@ -194,8 +196,9 @@ impl<'a> HeadersCarrier<'a> {
 
 impl<'a> Injector for HeadersCarrier<'a> {
     fn set(&mut self, key: &str, value: String) {
+        let header_name = HeaderName::from_str(key).expect("Must be a header name value");
         let header_value = HeaderValue::from_str(&value).expect("Must be a header value");
-        self.headers.insert(key, header_value);
+        self.headers.insert(header_name, header_value);
     }
 }
 
