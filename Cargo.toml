@@ -15,7 +15,7 @@ config = { version = "0.13", features = ["toml"], optional = true }
 diesel = { version = "1.4", features = ["mysql", "r2d2"], optional = true }
 ed25519-dalek = { version = "1.0.1", optional = true }
 flexi_logger = { version = "0.22", optional = true }
-jsonrpsee = { git = "https://github.com/p2p-org/jsonrpsee", branch = "client-middleware", features = ["server", "client"], optional = true }
+jsonrpsee = { git = "https://github.com/p2p-org/jsonrpsee", features = ["server", "client"], optional = true }
 log = { version = "0.4", features = [
   "kv_unstable",
   "kv_unstable_serde",
