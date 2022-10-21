@@ -7,7 +7,7 @@ use std::{
     future::Future,
     net::{SocketAddr, TcpListener},
 };
-use tokio::{net::ToSocketAddrs, signal};
+use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
 use tower_http::cors::CorsLayer;
 
 pub struct Server {
@@ -71,6 +71,10 @@ impl Server {
                 tracing::warn!("failed to stop the server: {error}");
             },
         }
+    }
+
+    pub fn spawn(self) -> JoinHandle<()> {
+        tokio::spawn(self.handle.stopped())
     }
 
     pub fn address(&self) -> &SocketAddr {
