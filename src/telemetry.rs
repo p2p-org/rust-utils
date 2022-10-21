@@ -23,26 +23,45 @@
 //! }
 //! ```
 
-use std::str::FromStr;
 use anyhow::Context as anyhowContext;
 use http::header::HeaderName;
 use jsonrpsee::http_client::{HeaderMap, HeaderValue, Middleware};
-use opentelemetry::{global, runtime, sdk::propagation::TraceContextPropagator};
-use opentelemetry::propagation::Injector;
-use opentelemetry::sdk::Resource;
+use opentelemetry::{
+    global,
+    propagation::Injector,
+    runtime,
+    sdk::{propagation::TraceContextPropagator, trace as sdktrace, Resource},
+};
 use opentelemetry_semantic_conventions as semcov;
-use opentelemetry::{sdk::trace as sdktrace};
 use sentry::ClientInitGuard;
 use serde::Deserialize;
+use std::str::FromStr;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_stackdriver::Stackdriver;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
-use tracing::{subscriber::set_global_default, Subscriber, Span};
+use tracing::{subscriber::set_global_default, Span, Subscriber};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub struct Telemetry(Option<ClientInitGuard>);
+
+macro_rules! tracer {
+    ($resource:ident, $pipeline:expr) => {{
+        let mut pipeline = $pipeline;
+        if let Some(ref name) = $resource.get(semcov::resource::SERVICE_NAME) {
+            pipeline = pipeline.with_service_name(name.to_string());
+        }
+
+        pipeline = pipeline.with_trace_config(
+            sdktrace::config()
+                .with_resource($resource)
+                .with_sampler(sdktrace::Sampler::AlwaysOn),
+        );
+
+        pipeline.install_batch(runtime::Tokio)?
+    }};
+}
 
 impl Telemetry {
     /// Compose multiple layers into a `tracing`'s subscriber.
@@ -61,55 +80,24 @@ impl Telemetry {
 
         let tracer = match tracing_settings.jaeger_collector {
             Some(collector_endpoint) => {
-                let mut pipeline  = opentelemetry_jaeger::new_collector_pipeline()
+                let pipeline = opentelemetry_jaeger::new_collector_pipeline()
                     .with_reqwest()
                     .with_endpoint(collector_endpoint);
 
-                if let Some(ref name) = name {
-                    pipeline = pipeline.with_service_name(name.to_string());
-                }
-
-                pipeline = pipeline.with_trace_config(
-                    sdktrace::config()
-                        .with_resource(resource)
-                        .with_sampler(sdktrace::Sampler::AlwaysOn),
-                );
-
-                pipeline.install_batch(runtime::Tokio)?
-            }
+                tracer!(resource, pipeline)
+            },
             // No explicit Jaeger collector set up, but we have environment
             // obviously set up to Jaeger collector
             None if std::env::var("OTEL_EXPORTER_JAEGER_ENDPOINT").is_ok() => {
-                let mut pipeline = opentelemetry_jaeger::new_collector_pipeline()
-                    .with_reqwest();
+                let pipeline = opentelemetry_jaeger::new_collector_pipeline().with_reqwest();
 
-                if let Some(ref name) = name {
-                    pipeline = pipeline.with_service_name(name.to_string());
-                }
-
-                pipeline = pipeline.with_trace_config(
-                    sdktrace::config()
-                        .with_resource(resource)
-                        .with_sampler(sdktrace::Sampler::AlwaysOn),
-                );
-
-                pipeline.install_batch(runtime::Tokio)?
-            }
+                tracer!(resource, pipeline)
+            },
             None => {
-                let mut pipeline = opentelemetry_jaeger::new_agent_pipeline();
+                let pipeline = opentelemetry_jaeger::new_agent_pipeline();
 
-                if let Some(ref name) = name {
-                    pipeline = pipeline.with_service_name(name.to_string());
-                }
-
-                pipeline = pipeline.with_trace_config(
-                    sdktrace::config()
-                        .with_resource(resource)
-                        .with_sampler(sdktrace::Sampler::AlwaysOn),
-                );
-
-                pipeline.install_batch(runtime::Tokio)?
-            }
+                tracer!(resource, pipeline)
+            },
         };
 
         let tracer = tracing_opentelemetry::layer().with_tracer(tracer);
@@ -219,8 +207,8 @@ impl Middleware for TracePropagatorMiddleware {
 
 /// Injector used via opentelemetry propagator to tell the extractor how to insert the "traceparent" header value
 /// This will allow the propagator to inject opentelemetry context into a standard data structure. Will basically
-/// insert a "traceparent" string value "{version}-{trace_id}-{span_id}-{trace-flags}" of the spans context into the headers.
-/// Listeners can then re-hydrate the context to add additional spans to the same trace.
+/// insert a "traceparent" string value "{version}-{trace_id}-{span_id}-{trace-flags}" of the spans context into the
+/// headers. Listeners can then re-hydrate the context to add additional spans to the same trace.
 struct HeadersCarrier<'a> {
     headers: &'a mut HeaderMap,
 }
@@ -246,15 +234,13 @@ impl<'a> Injector for HeadersCarrier<'a> {
 /// # fn main() {
 /// let r = make_resource(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 /// # }
-///
 /// ```
 pub fn make_resource<S>(service_name: S, service_version: S) -> Resource
-    where
-        S: Into<String>,
+where
+    S: Into<String>,
 {
     Resource::new(vec![
         semcov::resource::SERVICE_NAME.string(service_name.into()),
         semcov::resource::SERVICE_VERSION.string(service_version.into()),
     ])
 }
-
