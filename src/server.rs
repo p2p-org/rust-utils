@@ -1,93 +1,108 @@
+use axum_tracing_opentelemetry::opentelemetry_tracing_layer;
 use jsonrpsee::{
-    core::Error,
-    http_server::{AccessControl, AccessControlBuilder, HttpServer, HttpServerBuilder, HttpServerHandle},
-    RpcModule,
+    core::error::Error,
+    server::{AllowHosts, RpcModule, ServerBuilder, ServerHandle},
 };
-use std::net::{SocketAddr, TcpListener};
+use std::{
+    future::Future,
+    net::{SocketAddr, TcpListener},
+};
 use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
+use tower_http::cors::CorsLayer;
 
 pub struct Server {
     address: SocketAddr,
-    handle: HttpServerHandle,
+    handle: ServerHandle,
 }
 
 impl Server {
-    pub fn with_listener<Ctx>(
-        listener: impl Into<TcpListener>,
-        service: RpcModule<Ctx>,
-        allow_all: bool,
-    ) -> Result<Self, Error> {
-        let server = Self::builder(allow_all).build_from_tcp(listener)?;
-        Self::start(server, service)
-    }
+    /// Create and start a new server from TcpListener
+    pub fn with_listener<Ctx>(listener: impl Into<TcpListener>, service: RpcModule<Ctx>) -> Result<Self, Error> {
+        let middleware = tower::ServiceBuilder::new()
+            .layer(opentelemetry_tracing_layer())
+            .layer(CorsLayer::permissive());
 
-    pub async fn with_address<Ctx>(
-        address: impl ToSocketAddrs,
-        service: RpcModule<Ctx>,
-        allow_all: bool,
-    ) -> Result<Self, Error> {
-        let server = Self::builder(allow_all).build(address).await?;
-        Self::start(server, service)
-    }
+        let server = ServerBuilder::default()
+            .set_host_filtering(AllowHosts::Any)
+            .set_middleware(middleware)
+            .build_from_tcp(listener)?;
 
-    pub async fn stop(self) -> Result<(), Error> {
-        self.handle
-            .stop()?
-            .await
-            .map_err(|error| Error::Custom(format!("server failed to stop: {error:?}")))
-    }
-
-    pub fn spawn(self) -> JoinHandle<()> {
-        tokio::spawn(self.handle)
-    }
-
-    pub async fn wait(self) {
-        log::info!(
-            "running server on http://{}, press Ctrl-C to terminate...",
-            self.address
-        );
-
-        match signal::ctrl_c().await {
-            Ok(_) => {
-                log::info!("received Ctrl-C, terminating...");
-            },
-            Err(error) => {
-                log::warn!("failed to wait for Ctrl-C: {error}, terminating...");
-            },
-        }
-
-        match self.stop().await {
-            Ok(_) => {
-                log::info!("server stopped successfully");
-            },
-            Err(error) => {
-                log::warn!("failed to stop the server: {error}");
-            },
-        }
-    }
-
-    pub fn address(&self) -> &SocketAddr {
-        &self.address
-    }
-
-    fn builder(allow_all: bool) -> HttpServerBuilder {
-        let acl = if allow_all {
-            AccessControlBuilder::new()
-                .allow_all_headers()
-                .allow_all_origins()
-                .allow_all_hosts()
-                .build()
-        } else {
-            AccessControl::default()
-        };
-
-        HttpServerBuilder::default().set_access_control(acl)
-    }
-
-    fn start<Ctx>(server: HttpServer, service: RpcModule<Ctx>) -> Result<Self, Error> {
         Ok(Self {
             address: server.local_addr()?,
             handle: server.start(service)?,
         })
     }
+
+    /// Create and start a new server from TcpListener
+    pub async fn with_address<Ctx>(address: impl ToSocketAddrs, service: RpcModule<Ctx>) -> Result<Self, Error> {
+        let cors = CorsLayer::permissive();
+        let middleware = tower::ServiceBuilder::new()
+            .layer(opentelemetry_tracing_layer())
+            .layer(cors);
+
+        let server = ServerBuilder::default()
+            .set_host_filtering(AllowHosts::Any)
+            .set_middleware(middleware)
+            .build(address)
+            .await?;
+
+        Ok(Self {
+            address: server.local_addr()?,
+            handle: server.start(service)?,
+        })
+    }
+
+    pub async fn stop(self) -> Result<(), Error> {
+        self.handle.stop()?;
+        self.handle.stopped().await;
+        Ok(())
+    }
+
+    pub async fn with_graceful_shutdown<F>(self, signal: F)
+    where
+        F: Future<Output = ()>,
+    {
+        signal.await;
+        match self.stop().await {
+            Ok(_) => {
+                tracing::info!("server stopped successfully");
+            },
+            Err(error) => {
+                tracing::warn!("failed to stop the server: {error}");
+            },
+        }
+    }
+
+    pub fn spawn(self) -> JoinHandle<()> {
+        tokio::spawn(self.handle.stopped())
+    }
+
+    pub fn address(&self) -> &SocketAddr {
+        &self.address
+    }
+}
+
+#[allow(dead_code)]
+pub async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    tracing::warn!("signal received, starting graceful shutdown");
 }

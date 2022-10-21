@@ -23,18 +23,45 @@
 //! }
 //! ```
 
-use anyhow::Context;
-use opentelemetry::{global, runtime, sdk::propagation::TraceContextPropagator};
+use anyhow::Context as anyhowContext;
+use http::header::HeaderName;
+use jsonrpsee::http_client::{HeaderMap, HeaderValue, Middleware};
+use opentelemetry::{
+    global,
+    propagation::Injector,
+    runtime,
+    sdk::{propagation::TraceContextPropagator, trace as sdktrace, Resource},
+};
+use opentelemetry_semantic_conventions as semcov;
 use sentry::ClientInitGuard;
 use serde::Deserialize;
+use std::str::FromStr;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_stackdriver::Stackdriver;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
-use tracing::{subscriber::set_global_default, Subscriber};
+use tracing::{subscriber::set_global_default, Span, Subscriber};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub struct Telemetry(Option<ClientInitGuard>);
+
+macro_rules! tracer {
+    ($resource:ident, $pipeline:expr) => {{
+        let mut pipeline = $pipeline;
+        if let Some(ref name) = $resource.get(semcov::resource::SERVICE_NAME) {
+            pipeline = pipeline.with_service_name(name.to_string());
+        }
+
+        pipeline = pipeline.with_trace_config(
+            sdktrace::config()
+                .with_resource($resource)
+                .with_sampler(sdktrace::Sampler::AlwaysOn),
+        );
+
+        pipeline.install_batch(runtime::Tokio)?
+    }};
+}
 
 impl Telemetry {
     /// Compose multiple layers into a `tracing`'s subscriber.
@@ -44,32 +71,33 @@ impl Telemetry {
     /// We are using `impl Subscriber` as return type to avoid having to spell out the actual
     /// type of the returned subscriber, which is indeed quite complex.
     pub fn init(
-        name: String,
+        resource: Resource,
         tracing_settings: TracingSettings,
     ) -> anyhow::Result<(Self, impl Subscriber + Sync + Send)> {
         global::set_text_map_propagator(TraceContextPropagator::default());
 
+        let name = resource.get(semcov::resource::SERVICE_NAME);
+
         let tracer = match tracing_settings.jaeger_collector {
             Some(collector_endpoint) => {
-                opentelemetry_jaeger::new_collector_pipeline()
+                let pipeline = opentelemetry_jaeger::new_collector_pipeline()
                     .with_reqwest()
-                    .with_service_name(&name)
-                    .with_endpoint(collector_endpoint)
-                    .install_batch(runtime::Tokio)?
-            }
+                    .with_endpoint(collector_endpoint);
+
+                tracer!(resource, pipeline)
+            },
             // No explicit Jaeger collector set up, but we have environment
             // obviously set up to Jaeger collector
             None if std::env::var("OTEL_EXPORTER_JAEGER_ENDPOINT").is_ok() => {
-                opentelemetry_jaeger::new_collector_pipeline()
-                    .with_reqwest()
-                    .with_service_name(&name)
-                    .install_batch(runtime::Tokio)?
-            }
+                let pipeline = opentelemetry_jaeger::new_collector_pipeline().with_reqwest();
+
+                tracer!(resource, pipeline)
+            },
             None => {
-                opentelemetry_jaeger::new_agent_pipeline()
-                    .with_service_name(&name)
-                    .install_batch(runtime::Tokio)?
-            }
+                let pipeline = opentelemetry_jaeger::new_agent_pipeline();
+
+                tracer!(resource, pipeline)
+            },
         };
 
         let tracer = tracing_opentelemetry::layer().with_tracer(tracer);
@@ -83,6 +111,8 @@ impl Telemetry {
         } else {
             None
         };
+
+        let name = name.map(|it| it.to_string()).unwrap_or_default();
 
         // We are using BunyanFormattingLayer instead of tracing_subscriber::fmt because
         // fmt does not implement metadata inheritance
@@ -157,4 +187,60 @@ impl Default for TracingSettings {
 
 fn default_spec() -> String {
     "info".into()
+}
+
+pub struct TracePropagatorMiddleware;
+
+/// Injects the given OpenTelemetry Context into headers to allow propagation downstream.
+#[async_trait::async_trait]
+impl Middleware for TracePropagatorMiddleware {
+    async fn handle(&self, headers: &mut HeaderMap) {
+        let context = Span::current().context();
+
+        global::get_text_map_propagator(|injector| {
+            injector.inject_context(&context, &mut HeadersCarrier::new(headers))
+        });
+    }
+}
+
+// "traceparent" => https://www.w3.org/TR/trace-context/#trace-context-http-headers-format
+
+/// Injector used via opentelemetry propagator to tell the extractor how to insert the "traceparent" header value
+/// This will allow the propagator to inject opentelemetry context into a standard data structure. Will basically
+/// insert a "traceparent" string value "{version}-{trace_id}-{span_id}-{trace-flags}" of the spans context into the
+/// headers. Listeners can then re-hydrate the context to add additional spans to the same trace.
+struct HeadersCarrier<'a> {
+    headers: &'a mut HeaderMap,
+}
+
+impl<'a> HeadersCarrier<'a> {
+    pub fn new(headers: &'a mut HeaderMap) -> Self {
+        HeadersCarrier { headers }
+    }
+}
+
+impl<'a> Injector for HeadersCarrier<'a> {
+    fn set(&mut self, key: &str, value: String) {
+        let header_name = HeaderName::from_str(key).expect("Must be a header name value");
+        let header_value = HeaderValue::from_str(&value).expect("Must be a header value");
+        self.headers.insert(header_name, header_value);
+    }
+}
+
+/// call with service name and version
+///
+/// ```rust
+/// use axum_tracing_opentelemetry::make_resource;
+/// # fn main() {
+/// let r = make_resource(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+/// # }
+/// ```
+pub fn make_resource<S>(service_name: S, service_version: S) -> Resource
+where
+    S: Into<String>,
+{
+    Resource::new(vec![
+        semcov::resource::SERVICE_NAME.string(service_name.into()),
+        semcov::resource::SERVICE_VERSION.string(service_version.into()),
+    ])
 }
