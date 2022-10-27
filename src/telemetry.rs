@@ -158,7 +158,7 @@ impl Telemetry {
     }
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Clone)]
 #[serde(default)]
 pub struct TracingSettings {
     #[serde(default = "default_spec")]
