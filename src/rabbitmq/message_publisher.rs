@@ -113,13 +113,10 @@ impl RabbitMessagePublisher {
         Ok(())
     }
 
-    pub async fn purge(&self) -> anyhow::Result<()> {
+    pub async fn purge(&self, queue: &str) -> anyhow::Result<()> {
         let guard = self.channel.read().await;
         guard
-            .queue_purge("notifications", lapin::options::QueuePurgeOptions::default())
-            .await?;
-        guard
-            .queue_purge("users", lapin::options::QueuePurgeOptions::default())
+            .queue_purge(queue, lapin::options::QueuePurgeOptions::default())
             .await?;
         log::debug!("purge queues");
         Ok(())
