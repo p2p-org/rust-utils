@@ -2,12 +2,20 @@ use anyhow::Context;
 use async_trait::async_trait;
 use backoff::ExponentialBackoff;
 use borsh::BorshSerialize;
+#[cfg(feature = "telemetry")]
+use lapin::types::{AMQPValue, FieldTable, ShortString};
 use lapin::{
     options::BasicPublishOptions, topology::TopologyDefinition, BasicProperties, Channel, Connection,
     ConnectionProperties,
 };
+#[cfg(feature = "telemetry")]
+use opentelemetry::propagation::Injector;
+#[cfg(feature = "telemetry")]
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+#[cfg(feature = "telemetry")]
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[async_trait]
 pub trait MessagePublisher {
@@ -29,6 +37,7 @@ pub struct RabbitMessagePublisher {
     topology: TopologyDefinition,
 }
 
+#[cfg(not(feature = "telemetry"))]
 #[async_trait]
 impl MessagePublisher for RabbitMessagePublisher {
     async fn publish_payload(&self, exchange: &str, routing_key: &str, payload: &[u8]) -> anyhow::Result<()> {
@@ -36,6 +45,37 @@ impl MessagePublisher for RabbitMessagePublisher {
             self.reconnect().await?;
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "telemetry")]
+#[async_trait]
+impl MessagePublisher for RabbitMessagePublisher {
+    #[tracing::instrument(skip(self))]
+    async fn publish_payload(&self, exchange: &str, routing_key: &str, payload: &[u8]) -> anyhow::Result<()> {
+        while self.basic_publish(exchange, routing_key, payload).await.is_err() {
+            self.reconnect().await?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "telemetry")]
+pub(crate) struct AmqpClientCarrier<'a> {
+    properties: &'a mut BTreeMap<ShortString, AMQPValue>,
+}
+
+#[cfg(feature = "telemetry")]
+impl<'a> AmqpClientCarrier<'a> {
+    pub(crate) fn new(properties: &'a mut BTreeMap<ShortString, AMQPValue>) -> Self {
+        Self { properties }
+    }
+}
+
+#[cfg(feature = "telemetry")]
+impl<'a> Injector for AmqpClientCarrier<'a> {
+    fn set(&mut self, key: &str, value: String) {
+        self.properties.insert(key.into(), AMQPValue::LongString(value.into()));
     }
 }
 
@@ -96,6 +136,7 @@ impl RabbitMessagePublisher {
         Ok(())
     }
 
+    #[cfg(not(feature = "telemetry"))]
     async fn basic_publish(&self, exchange: &str, routing_key: &str, payload: &[u8]) -> lapin::Result<()> {
         let _ = self
             .channel
@@ -107,6 +148,36 @@ impl RabbitMessagePublisher {
                 BasicPublishOptions::default(),
                 payload,
                 BasicProperties::default(),
+            )
+            .await?
+            .await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "telemetry")]
+    #[tracing::instrument(skip(self))]
+    async fn basic_publish(&self, exchange: &str, routing_key: &str, payload: &[u8]) -> lapin::Result<()> {
+        let mut amqp_headers = BTreeMap::new();
+
+        // retrieve the current span
+        let span = tracing::Span::current();
+        // retrieve the current context
+        let cx = span.context();
+        // inject the current context through the amqp headers
+        opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.inject_context(&cx, &mut AmqpClientCarrier::new(&mut amqp_headers))
+        });
+
+        let _ = self
+            .channel
+            .read()
+            .await
+            .basic_publish(
+                exchange,
+                routing_key,
+                BasicPublishOptions::default(),
+                payload,
+                BasicProperties::default().with_headers(FieldTable::from(amqp_headers)),
             )
             .await?
             .await?;
