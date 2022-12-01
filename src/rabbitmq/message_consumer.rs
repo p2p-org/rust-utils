@@ -1,8 +1,12 @@
 use anyhow::Context;
 use async_trait::async_trait;
 use backoff::{future::retry_notify, ExponentialBackoff};
+#[cfg(feature = "telemetry")]
+use std::collections::BTreeMap;
 
 use futures::prelude::*;
+#[cfg(feature = "telemetry")]
+use lapin::types::{AMQPValue, ShortString};
 use lapin::{
     message::Delivery,
     options::{BasicCancelOptions, BasicNackOptions},
@@ -10,8 +14,14 @@ use lapin::{
     types::DeliveryTag,
     Channel, Connection, ConnectionProperties, Consumer, ConsumerState,
 };
+#[cfg(feature = "telemetry")]
+use opentelemetry::propagation::Extractor;
 
 use stream_cancel::{StreamExt, Trigger, Tripwire};
+#[cfg(feature = "telemetry")]
+use tracing::{Instrument, Span};
+#[cfg(feature = "telemetry")]
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub trait CancelConsume {
     fn cancel(self);
@@ -122,6 +132,7 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
         let mut consumer = Self::consumer(&topology).take_until_if(tripwire);
         let channel = Self::channel(&topology);
 
+        #[cfg(not(feature = "telemetry"))]
         while let Some(delivery) = consumer.next().await {
             let delivery = delivery.context("Failed to receive message from consumer")?;
             log::trace!("received message {}", delivery.delivery_tag);
@@ -131,6 +142,29 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                 // here we will send nack for failed message processing (e.g. can't deserialize, can't send through tx,
                 // etc)
                 log::warn!("Failed to process message: {err}");
+                delivery
+                    .nack(BasicNackOptions::default())
+                    .await
+                    .context("Failed to nask rabbitmq msg")?;
+            }
+        }
+
+        #[cfg(feature = "telemetry")]
+        while let Some(delivery) = consumer.next().await {
+            let delivery = delivery.context("Failed to receive message from consumer")?;
+            let span = tracing::info_span!("process_message", delivery = %delivery.delivery_tag);
+
+            let delivery = span.in_scope(|| correlate_trace_from_delivery(delivery));
+
+            // actual message handler should send ack/nack
+            if let Err(err) = processor
+                .process_message(&delivery, &channel)
+                .instrument(span.clone())
+                .await
+            {
+                // here we will send nack for failed message processing (e.g. can't deserialize, can't send through tx,
+                // etc)
+                tracing::warn!(parent: &span, error = ?err, delivery_tag = %delivery.delivery_tag, "Failed to process message");
                 delivery
                     .nack(BasicNackOptions::default())
                     .await
@@ -211,4 +245,56 @@ impl ManualAck for Option<Ackable> {
             None => Ok(()),
         }
     }
+}
+
+#[cfg(feature = "telemetry")]
+pub(crate) struct AmqpHeaderCarrier<'a> {
+    headers: &'a BTreeMap<ShortString, AMQPValue>,
+}
+
+#[cfg(feature = "telemetry")]
+impl<'a> AmqpHeaderCarrier<'a> {
+    pub(crate) fn new(headers: &'a BTreeMap<ShortString, AMQPValue>) -> Self {
+        Self { headers }
+    }
+}
+
+#[cfg(feature = "telemetry")]
+impl<'a> Extractor for AmqpHeaderCarrier<'a> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).and_then(|header_value| {
+            if let AMQPValue::LongString(header_value) = header_value {
+                std::str::from_utf8(header_value.as_bytes())
+                    .map_err(|e| tracing::error!("Error decoding header value {:?}", e))
+                    .ok()
+            } else {
+                tracing::warn!("Missing amqp tracing context propagation");
+                None
+            }
+        })
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.headers.keys().map(|header| header.as_str()).collect()
+    }
+}
+
+#[cfg(feature = "telemetry")]
+fn correlate_trace_from_delivery(delivery: Delivery) -> Delivery {
+    let span = Span::current();
+
+    let headers = &delivery
+        .properties
+        .headers()
+        .clone()
+        .unwrap_or_default()
+        .inner()
+        .clone();
+    let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.extract(&AmqpHeaderCarrier::new(headers))
+    });
+
+    span.set_parent(parent_cx);
+
+    delivery
 }
