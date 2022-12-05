@@ -1,3 +1,5 @@
+=== 0.7.1 ===
+inject and extract tracing id from rabbitmq message headers
 === 0.7.0 ===
 rabbitmq functions moved from push service
 === 0.6.0 ===
