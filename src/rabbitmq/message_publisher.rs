@@ -2,18 +2,17 @@ use anyhow::Context;
 use async_trait::async_trait;
 use backoff::ExponentialBackoff;
 use borsh::BorshSerialize;
-#[cfg(feature = "telemetry")]
-use lapin::types::{AMQPValue, FieldTable, ShortString};
 use lapin::{
     options::BasicPublishOptions, topology::TopologyDefinition, BasicProperties, Channel, Connection,
     ConnectionProperties,
 };
-#[cfg(feature = "telemetry")]
-use opentelemetry::propagation::Injector;
-#[cfg(feature = "telemetry")]
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+#[cfg(feature = "telemetry")]
+use lapin::types::FieldTable;
+#[cfg(feature = "telemetry")]
+use std::collections::BTreeMap;
 #[cfg(feature = "telemetry")]
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -57,25 +56,6 @@ impl MessagePublisher for RabbitMessagePublisher {
             self.reconnect().await?;
         }
         Ok(())
-    }
-}
-
-#[cfg(feature = "telemetry")]
-pub(crate) struct AmqpClientCarrier<'a> {
-    properties: &'a mut BTreeMap<ShortString, AMQPValue>,
-}
-
-#[cfg(feature = "telemetry")]
-impl<'a> AmqpClientCarrier<'a> {
-    pub(crate) fn new(properties: &'a mut BTreeMap<ShortString, AMQPValue>) -> Self {
-        Self { properties }
-    }
-}
-
-#[cfg(feature = "telemetry")]
-impl<'a> Injector for AmqpClientCarrier<'a> {
-    fn set(&mut self, key: &str, value: String) {
-        self.properties.insert(key.into(), AMQPValue::LongString(value.into()));
     }
 }
 
@@ -193,3 +173,29 @@ impl RabbitMessagePublisher {
         Ok(())
     }
 }
+
+#[cfg(feature = "telemetry")]
+mod telemetry {
+    use lapin::types::{AMQPValue, ShortString};
+    use opentelemetry::propagation::Injector;
+    use std::collections::BTreeMap;
+
+    pub(crate) struct AmqpClientCarrier<'a> {
+        properties: &'a mut BTreeMap<ShortString, AMQPValue>,
+    }
+
+    impl<'a> AmqpClientCarrier<'a> {
+        pub(crate) fn new(properties: &'a mut BTreeMap<ShortString, AMQPValue>) -> Self {
+            Self { properties }
+        }
+    }
+
+    impl<'a> Injector for AmqpClientCarrier<'a> {
+        fn set(&mut self, key: &str, value: String) {
+            self.properties.insert(key.into(), AMQPValue::LongString(value.into()));
+        }
+    }
+}
+
+#[cfg(feature = "telemetry")]
+use telemetry::*;

@@ -1,12 +1,8 @@
 use anyhow::Context;
 use async_trait::async_trait;
 use backoff::{future::retry_notify, ExponentialBackoff};
-#[cfg(feature = "telemetry")]
-use std::collections::BTreeMap;
 
 use futures::prelude::*;
-#[cfg(feature = "telemetry")]
-use lapin::types::{AMQPValue, ShortString};
 use lapin::{
     message::Delivery,
     options::{BasicCancelOptions, BasicNackOptions},
@@ -14,14 +10,10 @@ use lapin::{
     types::DeliveryTag,
     Channel, Connection, ConnectionProperties, Consumer, ConsumerState,
 };
-#[cfg(feature = "telemetry")]
-use opentelemetry::propagation::Extractor;
 
 use stream_cancel::{StreamExt, Trigger, Tripwire};
 #[cfg(feature = "telemetry")]
-use tracing::{Instrument, Span};
-#[cfg(feature = "telemetry")]
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::Instrument;
 
 pub trait CancelConsume {
     fn cancel(self);
@@ -248,53 +240,64 @@ impl ManualAck for Option<Ackable> {
 }
 
 #[cfg(feature = "telemetry")]
-pub(crate) struct AmqpHeaderCarrier<'a> {
-    headers: &'a BTreeMap<ShortString, AMQPValue>,
-}
+mod telemetry {
+    use lapin::{
+        message::Delivery,
+        types::{AMQPValue, ShortString},
+    };
+    use opentelemetry::propagation::Extractor;
+    use std::collections::BTreeMap;
+    use tracing::Span;
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-#[cfg(feature = "telemetry")]
-impl<'a> AmqpHeaderCarrier<'a> {
-    pub(crate) fn new(headers: &'a BTreeMap<ShortString, AMQPValue>) -> Self {
-        Self { headers }
+    pub(crate) struct AmqpHeaderCarrier<'a> {
+        headers: &'a BTreeMap<ShortString, AMQPValue>,
+    }
+
+    impl<'a> AmqpHeaderCarrier<'a> {
+        pub(crate) fn new(headers: &'a BTreeMap<ShortString, AMQPValue>) -> Self {
+            Self { headers }
+        }
+    }
+
+    impl<'a> Extractor for AmqpHeaderCarrier<'a> {
+        fn get(&self, key: &str) -> Option<&str> {
+            self.headers.get(key).and_then(|header_value| {
+                if let AMQPValue::LongString(header_value) = header_value {
+                    std::str::from_utf8(header_value.as_bytes())
+                        .map_err(|e| tracing::error!("Error decoding header value {:?}", e))
+                        .ok()
+                } else {
+                    tracing::warn!("Missing amqp tracing context propagation");
+                    None
+                }
+            })
+        }
+
+        fn keys(&self) -> Vec<&str> {
+            self.headers.keys().map(|header| header.as_str()).collect()
+        }
+    }
+
+    pub fn correlate_trace_from_delivery(delivery: Delivery) -> Delivery {
+        let span = Span::current();
+
+        let headers = &delivery
+            .properties
+            .headers()
+            .clone()
+            .unwrap_or_default()
+            .inner()
+            .clone();
+        let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.extract(&AmqpHeaderCarrier::new(headers))
+        });
+
+        span.set_parent(parent_cx);
+
+        delivery
     }
 }
 
 #[cfg(feature = "telemetry")]
-impl<'a> Extractor for AmqpHeaderCarrier<'a> {
-    fn get(&self, key: &str) -> Option<&str> {
-        self.headers.get(key).and_then(|header_value| {
-            if let AMQPValue::LongString(header_value) = header_value {
-                std::str::from_utf8(header_value.as_bytes())
-                    .map_err(|e| tracing::error!("Error decoding header value {:?}", e))
-                    .ok()
-            } else {
-                tracing::warn!("Missing amqp tracing context propagation");
-                None
-            }
-        })
-    }
-
-    fn keys(&self) -> Vec<&str> {
-        self.headers.keys().map(|header| header.as_str()).collect()
-    }
-}
-
-#[cfg(feature = "telemetry")]
-fn correlate_trace_from_delivery(delivery: Delivery) -> Delivery {
-    let span = Span::current();
-
-    let headers = &delivery
-        .properties
-        .headers()
-        .clone()
-        .unwrap_or_default()
-        .inner()
-        .clone();
-    let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
-        propagator.extract(&AmqpHeaderCarrier::new(headers))
-    });
-
-    span.set_parent(parent_cx);
-
-    delivery
-}
+use telemetry::*;
