@@ -146,7 +146,7 @@ macro_rules! impl_settings {
         $crate::paste::paste! {
             impl $name {
                 $(
-                    fn [<default_ $field>]() -> $type {
+                    $vis fn [<default_ $field>]() -> $type {
                         $def
                     }
                 )+

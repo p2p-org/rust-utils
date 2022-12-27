@@ -1,3 +1,5 @@
+=== 0.7.2 ===
+specify access visibility for default methods of the settings
 === 0.7.1 ===
 inject and extract tracing id from rabbitmq message headers
 === 0.7.0 ===
