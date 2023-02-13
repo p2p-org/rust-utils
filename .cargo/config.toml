@@ -1,5 +1,5 @@
 [net]
 git-fetch-with-cli = true
 
-[registries.nexus]
-index = "https://nexus.keyapp.org/repository/crates/index"
+# [registries.nexus]
+# index = "https://nexus.keyapp.org/repository/crates/index"
