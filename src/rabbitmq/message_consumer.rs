@@ -137,7 +137,7 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                 delivery
                     .nack(BasicNackOptions::default())
                     .await
-                    .context("Failed to nask rabbitmq msg")?;
+                    .context("Failed to nack rabbitmq msg")?;
             }
         }
 
@@ -160,7 +160,7 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                 delivery
                     .nack(BasicNackOptions::default())
                     .await
-                    .context("Failed to nask rabbitmq msg")?;
+                    .context("Failed to nack rabbitmq msg")?;
             }
         }
 
