@@ -19,12 +19,14 @@ diesel = { version = "1.4", features = ["mysql", "r2d2"], optional = true }
 ed25519-dalek = { version = "1.0.1", optional = true }
 flexi_logger = { version = "0.22", optional = true }
 futures = { version = "0.3.21", optional = true }
+gcloud-env = { version = "0.1.0", optional = true }
 http = { version = "0.2", optional = true }
-jsonrpsee = { registry = "nexus", version = "0.16.2", features = [
+jsonrpsee = { git = "https://github.com/p2p-org/jsonrpsee", features = [
   "server",
   "client",
 ], optional = true }
 lapin = { version = "2.1", optional = true }
+lazy_static = { version = "1.4.0", optional = true }
 log = { version = "0.4", features = [
   "kv_unstable",
   "kv_unstable_serde",
@@ -69,7 +71,6 @@ tracing-subscriber = { version = "0.3", features = [
 
 [dev-dependencies]
 claim = "0.5.0"
-lazy_static = "1.4.0"
 
 [features]
 crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
@@ -91,6 +92,7 @@ rabbitmq = [
   "tokio-reactor-trait",
   "stream-cancel",
 ]
+rpc = ["gcloud-env", "lazy_static", "serde_with"]
 server = [
   "jsonrpsee",
   "tokio",
