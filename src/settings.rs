@@ -218,7 +218,7 @@ macro_rules! impl_db_settings {
         #[serde(default = "DbSettings::default_pool_size")]
         pub pool_size: u32,
         #[serde(rename = "connect_timeout_ms", default = "DbSettings::default_connect_timeout")]
-        #[serde_with::serde_as(as = "serde_with::DurationMilliSeconds")]
+        #[serde_as(as = "serde_with::DurationMilliSeconds")]
         pub connect_timeout: std::time::Duration,
     }
 
