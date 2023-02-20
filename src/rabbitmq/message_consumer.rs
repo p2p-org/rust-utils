@@ -15,6 +15,15 @@ use stream_cancel::{StreamExt, Trigger, Tripwire};
 #[cfg(feature = "telemetry")]
 use tracing::Instrument;
 
+#[derive(Debug, Clone, Copy)]
+pub struct PermanentError;
+
+impl std::fmt::Display for PermanentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("PermanentError")
+    }
+}
+
 pub trait CancelConsume {
     fn cancel(self);
 }
@@ -134,10 +143,12 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                 // here we will send nack for failed message processing (e.g. can't deserialize, can't send through tx,
                 // etc)
                 log::warn!("Failed to process message: {err}");
-                delivery
-                    .nack(BasicNackOptions::default())
-                    .await
-                    .context("Failed to nack rabbitmq msg")?;
+                if !err.is::<PermanentError>() {
+                    delivery
+                        .nack(BasicNackOptions::default())
+                        .await
+                        .context("Failed to nack rabbitmq msg")?;
+                }
             }
         }
 
@@ -157,10 +168,12 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                 // here we will send nack for failed message processing (e.g. can't deserialize, can't send through tx,
                 // etc)
                 tracing::warn!(parent: &span, error = ?err, delivery_tag = %delivery.delivery_tag, "Failed to process message");
-                delivery
-                    .nack(BasicNackOptions::default())
-                    .await
-                    .context("Failed to nack rabbitmq msg")?;
+                if !err.is::<PermanentError>() {
+                    delivery
+                        .nack(BasicNackOptions::default())
+                        .await
+                        .context("Failed to nack rabbitmq msg")?;
+                }
             }
         }
 
