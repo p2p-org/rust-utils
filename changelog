@@ -1,3 +1,5 @@
+=== 0.9.0 ===
+replace borsh serialization with serde_json in the rabbitmq producer
 === 0.8.1 ===
 revert 0.7.3 fix
 === 0.8.0 ===
