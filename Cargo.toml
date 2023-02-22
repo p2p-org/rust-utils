@@ -83,7 +83,6 @@ rabbitmq = [
   "anyhow",
   "async-trait",
   "backoff",
-  "borsh",
   "futures",
   "lapin",
   "log",
