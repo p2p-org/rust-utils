@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "rust-utils"
-version = "0.8.2"
+version = "0.9.0"
 
 [lib]
 crate-type = ["lib"]
@@ -83,7 +83,6 @@ rabbitmq = [
   "anyhow",
   "async-trait",
   "backoff",
-  "borsh",
   "futures",
   "lapin",
   "log",

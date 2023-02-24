@@ -1,7 +1,6 @@
 use anyhow::Context;
 use async_trait::async_trait;
 use backoff::ExponentialBackoff;
-use borsh::BorshSerialize;
 use lapin::{
     options::BasicPublishOptions, topology::TopologyDefinition, BasicProperties, Channel, Connection,
     ConnectionProperties,
@@ -13,6 +12,7 @@ use tokio::sync::RwLock;
 use lapin::types::FieldTable;
 #[cfg(feature = "telemetry")]
 use std::collections::BTreeMap;
+use serde::Serialize;
 #[cfg(feature = "telemetry")]
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -22,9 +22,9 @@ pub trait MessagePublisher {
 
     async fn publish<T>(&self, exchange: &str, routing_key: &str, message: &T) -> anyhow::Result<()>
     where
-        T: BorshSerialize + Sync,
+        T: Serialize + Sync,
     {
-        self.publish_payload(exchange, routing_key, borsh::to_vec(message)?.as_ref())
+        self.publish_payload(exchange, routing_key, serde_json::to_vec(message)?.as_ref())
             .await
     }
 }
