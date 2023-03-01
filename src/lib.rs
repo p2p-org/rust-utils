@@ -19,6 +19,9 @@ pub mod telemetry;
 #[cfg(feature = "tokens")]
 pub mod tokens;
 
+#[cfg(feature = "ethereum")]
+pub mod ethereum;
+
 #[cfg(feature = "rpc")]
 pub mod rpc;
 
