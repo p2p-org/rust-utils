@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "rust-utils"
-version = "0.9.0"
+version = "0.10.0"
 
 [lib]
 crate-type = ["lib"]
@@ -17,6 +17,7 @@ chrono = { version = "0.4", optional = true }
 config = { version = "0.13", features = ["toml"], optional = true }
 diesel = { version = "1.4", features = ["mysql", "r2d2"], optional = true }
 ed25519-dalek = { version = "1.0.1", optional = true }
+ethereum-types = { version = "0.13", optional = true }
 flexi_logger = { version = "0.22", optional = true }
 futures = { version = "0.3.21", optional = true }
 gcloud-env = { version = "0.1.0", optional = true }
@@ -40,6 +41,7 @@ opentelemetry-semantic-conventions = { version = "0.10.0", optional = true }
 paste = { version = "1", optional = true }
 rand = { version = "0.7", optional = true }
 reqwest = { version = "0.11", features = ["blocking", "json"], optional = true }
+rustc-hex = { version = "2.1", optional = true }
 scheduled-thread-pool = { version = "0.2", optional = true }
 sentry = { version = "0.26.0", optional = true }
 sentry-log = { version = "0.26.0", optional = true }
@@ -49,6 +51,7 @@ serde_json = "1.0"
 serde_with = { version = "1.12", optional = true }
 solana-client = { version = "1.14", optional = true }
 solana-sdk = { version = "1.14", optional = true }
+sqlx = { version = "0.6", features = ["runtime-tokio-native-tls"], optional = true }
 stream-cancel = { version = "0.8", optional = true }
 strum = { version = "0.21", optional = true }
 strum_macros = { version = "0.21", optional = true }
@@ -68,7 +71,6 @@ tracing-subscriber = { version = "0.3", features = [
   "env-filter",
 ], optional = true }
 
-
 [dev-dependencies]
 claim = "0.5.0"
 
@@ -77,6 +79,7 @@ crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
 db = ["diesel", "scheduled-thread-pool"]
 default = []
 error = ["strum", "strum_macros", "thiserror"]
+ethereum = ["rustc-hex", "serde_with", "ethereum-types", "sqlx", "thiserror"]
 logger = ["sentry", "sentry-log", "log", "flexi_logger", "anyhow", "chrono"]
 macros = []
 rabbitmq = [

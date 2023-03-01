@@ -1,3 +1,5 @@
+== 0.10.0 ===
+the ethereum module added with EthereumAddress structure for better converting to String type from Address
 === 0.9.0 ===
 replace borsh serialization with serde_json in the rabbitmq producer
 === 0.8.1 ===
@@ -5,7 +7,7 @@ revert 0.7.3 fix
 === 0.8.0 ===
 added rpc module
 === 0.7.3 ===
-fixed settings macro added serde with as extern crate
+fixed settings macro added serde-with as extern crate
 === 0.7.2 ===
 specify access visibility for default methods of the settings
 === 0.7.1 ===
