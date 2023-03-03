@@ -50,7 +50,7 @@ impl MessagePublisher for RabbitMessagePublisher {
 #[cfg(feature = "telemetry")]
 #[async_trait]
 impl MessagePublisher for RabbitMessagePublisher {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(level = "debug", skip(self, payload))]
     async fn publish_payload(&self, exchange: &str, routing_key: &str, payload: &[u8]) -> anyhow::Result<()> {
         while self.basic_publish(exchange, routing_key, payload).await.is_err() {
             self.reconnect().await?;
@@ -135,7 +135,7 @@ impl RabbitMessagePublisher {
     }
 
     #[cfg(feature = "telemetry")]
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(level = "debug", skip(self, payload))]
     async fn basic_publish(&self, exchange: &str, routing_key: &str, payload: &[u8]) -> lapin::Result<()> {
         let mut amqp_headers = BTreeMap::new();
 
