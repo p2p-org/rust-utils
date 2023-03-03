@@ -136,9 +136,16 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
         let channel = Self::channel(&topology);
 
         while let Some(delivery) = consumer.next().await {
+            let delivery = delivery.context("Failed to receive message from consumer")?;
+
+            #[cfg(feature = "telemetry")]
+            let (delivery, span) = {
+                let span = tracing::info_span!("process_message", delivery = %delivery.delivery_tag);
+                (span.in_scope(|| correlate_trace_from_delivery(delivery)), span)
+            };
+
             #[cfg(not(feature = "telemetry"))]
             let ack = {
-                let delivery = delivery.context("Failed to receive message from consumer")?;
                 log::trace!("received message {}", delivery.delivery_tag);
 
                 // actual message handler should return non-permanent error if it wants to nack message
@@ -156,11 +163,6 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
 
             #[cfg(feature = "telemetry")]
             let ack = {
-                let delivery = delivery.context("Failed to receive message from consumer")?;
-                let span = tracing::info_span!("process_message", delivery = %delivery.delivery_tag);
-
-                let delivery = span.in_scope(|| correlate_trace_from_delivery(delivery));
-
                 // actual message handler should return non-permanent error if it wants to nack message
                 match processor
                     .process_message(&delivery, &channel)
