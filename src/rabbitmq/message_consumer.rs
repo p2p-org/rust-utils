@@ -33,8 +33,7 @@ pub trait MessageConsumer<MsgProcessor> {
     fn try_connect_and_consume(
         url: &str,
         topology_definition: TopologyDefinition,
-        processor: MsgProcessor,
-        consumer_tag: &'static str,
+        processor: MsgProcessor
     ) -> Self::Cancellation;
 }
 
@@ -70,7 +69,6 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> MessageCons
         url: &str,
         topology_definition: TopologyDefinition,
         processor: MsgProcessor,
-        consumer_tag: &'static str,
     ) -> Self::Cancellation {
         let (trigger, tripwire) = Tripwire::new();
 
@@ -80,19 +78,19 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> MessageCons
             processor,
             tripwire,
         }
-        .try_connect_and_consume_core(consumer_tag);
+        .try_connect_and_consume_core();
 
         Self::Cancellation { trigger }
     }
 }
 
 impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessageConsumer<MsgProcessor> {
-    fn try_connect_and_consume_core(self, consumer_tag: &'static str) {
+    fn try_connect_and_consume_core(self) {
         tokio::spawn(async move {
             log::trace!("try connect and consume");
             let retry_status = retry_notify(
                 ExponentialBackoff::default(),
-                || async { self.clone().connect_and_consume(consumer_tag).await.map_err(Into::into) },
+                || async { self.clone().connect_and_consume().await.map_err(Into::into) },
                 |err, duration| {
                     log::warn!("failed to connect and consume: {err:?}, retrying in {duration:?}");
                 },
@@ -104,7 +102,7 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
         });
     }
 
-    async fn connect_and_consume(self, consumer_tag: &str) -> anyhow::Result<()> {
+    async fn connect_and_consume(self) -> anyhow::Result<()> {
         let RabbitMessageConsumer {
             url,
             topology_definition,
@@ -180,9 +178,10 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
         // Consumer will be cancelled on error, otherwise cancellation trigger
         // has been fired and it has to be cancelled by hand
         let channel = Self::channel(&topology);
-        if Self::consumer(&topology).state() != ConsumerState::Canceled {
+        let consumer = Self::consumer(&topology);
+        if consumer.state() != ConsumerState::Canceled {
             channel
-                .basic_cancel(consumer_tag, BasicCancelOptions::default())
+                .basic_cancel(consumer.tag().as_str(), BasicCancelOptions::default())
                 .await
                 .context("Failed to cancel rabbitmq consumer")?;
         }
