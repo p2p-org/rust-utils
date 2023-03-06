@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use backoff::{future::retry_notify, ExponentialBackoff};
 
@@ -27,8 +27,16 @@ impl std::fmt::Display for PermanentError {
     }
 }
 
+#[async_trait]
 pub trait CancelConsume {
     fn cancel(self);
+    async fn wait(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn wait_or_panic(&self) {
+        self.wait().await.expect("Failed to wait for consumer cancellation")
+    }
 }
 
 pub trait MessageConsumer<MsgProcessor> {
@@ -93,11 +101,21 @@ where
 
 pub struct RabbitConsumerCancellation {
     trigger: Trigger,
+    tripwire: Tripwire,
 }
 
+#[async_trait]
 impl CancelConsume for RabbitConsumerCancellation {
     fn cancel(self) {
         self.trigger.cancel();
+    }
+
+    async fn wait(&self) -> anyhow::Result<()> {
+        if self.tripwire.clone().await {
+            Err(anyhow!("Stopped"))
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -121,7 +139,7 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> MessageCons
     ) -> Self::Cancellation {
         let (trigger, tripwire) = Tripwire::new();
 
-        RabbitMessageConsumer {
+        let handle = RabbitMessageConsumer {
             url: url.to_owned(),
             topology_definition,
             processor,
@@ -129,12 +147,13 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> MessageCons
         }
         .try_connect_and_consume_core();
 
-        Self::Cancellation { trigger }
+        Self::Cancellation { trigger, tripwire: handle }
     }
 }
 
 impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessageConsumer<MsgProcessor> {
-    fn try_connect_and_consume_core(self) {
+    fn try_connect_and_consume_core(self) -> Tripwire {
+        let (trigger, tripwire) = Tripwire::new();
         tokio::spawn(async move {
             log::trace!("try connect and consume");
             let retry_status = retry_notify(
@@ -145,10 +164,12 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                 },
             )
             .await;
-            if let Err(err) = retry_status {
-                log::warn!("Reconnect logic failed: {err}");
+            if let Err(error) = retry_status {
+                log::error!("Reconnect logic failed: {error}");
             }
+            trigger.cancel();
         });
+        tripwire
     }
 
     async fn connect_and_consume(self) -> anyhow::Result<()> {
