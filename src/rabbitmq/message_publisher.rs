@@ -10,9 +10,9 @@ use tokio::sync::RwLock;
 
 #[cfg(feature = "telemetry")]
 use lapin::types::FieldTable;
+use serde::Serialize;
 #[cfg(feature = "telemetry")]
 use std::collections::BTreeMap;
-use serde::Serialize;
 #[cfg(feature = "telemetry")]
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 

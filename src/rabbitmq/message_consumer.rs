@@ -18,6 +18,8 @@ use tracing::Instrument;
 #[derive(Debug, Clone, Copy)]
 pub struct PermanentError;
 
+pub type AutoAck = bool;
+
 impl std::fmt::Display for PermanentError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str("PermanentError")
@@ -39,7 +41,7 @@ pub trait MessageConsumer<MsgProcessor> {
 
 #[async_trait]
 pub trait MessageProcessor {
-    async fn process_message(&self, delivery: &Delivery, channel: &Channel) -> anyhow::Result<()>;
+    async fn process_message(&self, delivery: &Delivery, channel: &Channel) -> anyhow::Result<AutoAck>;
 }
 
 pub struct RabbitConsumerCancellation {
@@ -131,47 +133,61 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
         let mut consumer = Self::consumer(&topology).take_until_if(tripwire);
         let channel = Self::channel(&topology);
 
-        #[cfg(not(feature = "telemetry"))]
         while let Some(delivery) = consumer.next().await {
             let delivery = delivery.context("Failed to receive message from consumer")?;
-            log::trace!("received message {}", delivery.delivery_tag);
 
-            // actual message handler should send ack/nack
-            if let Err(err) = processor.process_message(&delivery, &channel).await {
-                // here we will send nack for failed message processing (e.g. can't deserialize, can't send through tx,
-                // etc)
-                log::warn!("Failed to process message: {err}");
-                if !err.is::<PermanentError>() {
-                    delivery
-                        .nack(BasicNackOptions::default())
-                        .await
-                        .context("Failed to nack rabbitmq msg")?;
+            #[cfg(feature = "telemetry")]
+            let (delivery, span) = {
+                let span = tracing::info_span!("process_message", delivery = %delivery.delivery_tag);
+                (span.in_scope(|| correlate_trace_from_delivery(delivery)), span)
+            };
+
+            #[cfg(not(feature = "telemetry"))]
+            let ack = {
+                log::trace!("received message {}", delivery.delivery_tag);
+
+                // actual message handler should return non-permanent error if it wants to nack message
+                match processor.process_message(&delivery, &channel).await {
+                    Ok(true) => true,
+                    Ok(false) => continue,
+                    Err(error) => {
+                        // here we will send nack for failed message processing (e.g. can't deserialize, can't send
+                        // through tx, etc)
+                        log::warn!("Failed to process message: {error}");
+                        error.is::<PermanentError>()
+                    },
                 }
-            }
-        }
+            };
 
-        #[cfg(feature = "telemetry")]
-        while let Some(delivery) = consumer.next().await {
-            let delivery = delivery.context("Failed to receive message from consumer")?;
-            let span = tracing::info_span!("process_message", delivery = %delivery.delivery_tag);
-
-            let delivery = span.in_scope(|| correlate_trace_from_delivery(delivery));
-
-            // actual message handler should send ack/nack
-            if let Err(err) = processor
-                .process_message(&delivery, &channel)
-                .instrument(span.clone())
-                .await
-            {
-                // here we will send nack for failed message processing (e.g. can't deserialize, can't send through tx,
-                // etc)
-                tracing::warn!(parent: &span, error = ?err, delivery_tag = %delivery.delivery_tag, "Failed to process message");
-                if !err.is::<PermanentError>() {
-                    delivery
-                        .nack(BasicNackOptions::default())
-                        .await
-                        .context("Failed to nack rabbitmq msg")?;
+            #[cfg(feature = "telemetry")]
+            let ack = {
+                // actual message handler should return non-permanent error if it wants to nack message
+                match processor
+                    .process_message(&delivery, &channel)
+                    .instrument(span.clone())
+                    .await
+                {
+                    Ok(true) => true,
+                    Ok(false) => continue,
+                    Err(error) => {
+                        // here we will send nack for failed message processing (e.g. can't deserialize, can't send
+                        // through tx, etc)
+                        tracing::warn!(parent: &span, error = ?error, delivery_tag = %delivery.delivery_tag, "Failed to process message");
+                        error.is::<PermanentError>()
+                    },
                 }
+            };
+
+            if ack {
+                delivery
+                    .ack(Default::default())
+                    .await
+                    .context("Failed to ack rabbitmq msg")?;
+            } else {
+                delivery
+                    .nack(Default::default())
+                    .await
+                    .context("Failed to nack rabbitmq msg")?;
             }
         }
 
