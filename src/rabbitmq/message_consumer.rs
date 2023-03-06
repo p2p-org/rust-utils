@@ -5,11 +5,12 @@ use backoff::{future::retry_notify, ExponentialBackoff};
 use futures::prelude::*;
 use lapin::{
     message::Delivery,
-    options::{BasicCancelOptions, BasicNackOptions},
+    options::BasicCancelOptions,
     topology::{RestoredTopology, TopologyDefinition},
     types::DeliveryTag,
     Channel, Connection, ConnectionProperties, Consumer, ConsumerState,
 };
+use serde::de::DeserializeOwned;
 
 use stream_cancel::{StreamExt, Trigger, Tripwire};
 #[cfg(feature = "telemetry")]
@@ -35,13 +36,59 @@ pub trait MessageConsumer<MsgProcessor> {
     fn try_connect_and_consume(
         url: &str,
         topology_definition: TopologyDefinition,
-        processor: MsgProcessor
+        processor: MsgProcessor,
     ) -> Self::Cancellation;
 }
 
 #[async_trait]
 pub trait MessageProcessor {
     async fn process_message(&self, delivery: &Delivery, channel: &Channel) -> anyhow::Result<AutoAck>;
+}
+
+#[async_trait]
+pub trait MessageHandler {
+    type Message;
+    const ROUTING_KEY: Option<&'static str> = None;
+    async fn handle_message(&self, message: Self::Message) -> anyhow::Result<()>;
+}
+
+#[cfg(not(feature = "telemetry"))]
+macro_rules! tagged_warn {
+    (tag = $tag:expr; $($arg:tt)*) => {
+        log::warn!($($arg)*)
+    };
+}
+#[cfg(feature = "telemetry")]
+macro_rules! tagged_warn {
+    (tag = $tag:expr; $($arg:tt)*) => {
+        tracing::warn!(delivery_tag = %$tag, $($arg)*)
+    };
+}
+
+#[async_trait]
+impl<T> MessageProcessor for T
+where
+    T: MessageHandler + Send + Sync + 'static,
+    T::Message: DeserializeOwned + Send + Sync + 'static,
+{
+    async fn process_message(&self, delivery: &Delivery, _channel: &Channel) -> anyhow::Result<AutoAck> {
+        if let Some(routing_key) = Self::ROUTING_KEY {
+            if delivery.routing_key.as_str() != routing_key {
+                tagged_warn!(tag = delivery.delivery_tag; "Unsupported routing key {}", delivery.routing_key);
+                return Ok(true);
+            }
+        }
+
+        let message = serde_json::from_slice::<T::Message>(delivery.data.as_ref()).map_err(|error| {
+            tagged_warn!(tag = delivery.delivery_tag; "Failed to deserialize message: {error:?}");
+            error
+        })?;
+        self.handle_message(message).await.map_err(|error| {
+            tagged_warn!(tag = delivery.delivery_tag; "Failed to handle message: {error:?}");
+            error
+        })?;
+        Ok(true)
+    }
 }
 
 pub struct RabbitConsumerCancellation {
