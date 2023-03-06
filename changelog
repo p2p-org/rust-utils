@@ -1,6 +1,8 @@
-== 0.11.0 ===
+=== 0.12.0 ===
+update message consumer protocol (auto-ack) and add message handler trait
+=== 0.11.0 ===
 get rid of the `consumer_tag` argument, extract it from topology
-== 0.10.0 ===
+=== 0.10.0 ===
 the ethereum module added with EthereumAddress structure for better converting to String type from Address
 === 0.9.0 ===
 replace borsh serialization with serde_json in the rabbitmq producer
