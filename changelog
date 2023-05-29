@@ -1,3 +1,7 @@
+=== 0.13.0 ===
+solana backoff added
+=== 0.12.1 ===
+propagate errors from consumer
 === 0.12.0 ===
 update message consumer protocol (auto-ack) and add message handler trait
 === 0.11.0 ===
