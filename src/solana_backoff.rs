@@ -1,3 +1,7 @@
+// TODO: when solana-rpc-client crate will be released, we should use it for backoff.
+// 1) Build an RpcClient with custom HttpSender that will be depend on sender from crate repo.
+// 2) add all backoff stuff around HttpSender and avoid any extra functions while RpcClient requests calling.
+
 use std::time::Duration;
 
 use backoff::ExponentialBackoff;
