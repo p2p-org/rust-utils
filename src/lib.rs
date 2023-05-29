@@ -25,6 +25,9 @@ pub mod ethereum;
 #[cfg(feature = "rpc")]
 pub mod rpc;
 
+#[cfg(feature = "solana-backoff")]
+pub mod solana_backoff;
+
 #[cfg(feature = "settings")]
 pub extern crate config;
 
