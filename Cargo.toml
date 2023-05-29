@@ -104,6 +104,7 @@ server = [
   "axum-tracing-opentelemetry",
 ]
 settings = ["config", "log", "serde_with", "paste", "thiserror"]
+solana-backoff = ["backoff", "tracing", "solana-client", "futures", "tokio"]
 telemetry = [
   "tracing",
   "opentelemetry",
