@@ -5,10 +5,11 @@ use jsonrpsee::{
 };
 use std::{
     future::Future,
-    net::{SocketAddr, TcpListener},
+    net::{SocketAddr},
 };
 use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
 use tower_http::cors::CorsLayer;
+use jsonrpsee::server::middleware::proxy_get_request::ProxyGetRequestLayer;
 
 pub struct Server {
     address: SocketAddr,
@@ -17,32 +18,20 @@ pub struct Server {
 
 impl Server {
     /// Create and start a new server from TcpListener
-    pub fn with_listener<Ctx>(listener: impl Into<TcpListener>, service: RpcModule<Ctx>) -> Result<Self, Error> {
-        let middleware = tower::ServiceBuilder::new()
-            .layer(opentelemetry_tracing_layer())
-            .layer(CorsLayer::permissive());
-
-        let server = ServerBuilder::default()
-            .set_host_filtering(AllowHosts::Any)
-            .set_middleware(middleware)
-            .build_from_tcp(listener)?;
-
-        Ok(Self {
-            address: server.local_addr()?,
-            handle: server.start(service)?,
-        })
-    }
-
-    /// Create and start a new server from TcpListener
     pub async fn with_address<Ctx>(address: impl ToSocketAddrs, service: RpcModule<Ctx>) -> Result<Self, Error> {
         let cors = CorsLayer::permissive();
         let middleware = tower::ServiceBuilder::new()
             .layer(opentelemetry_tracing_layer())
-            .layer(cors);
+            .layer(cors)
+            .layer(ProxyGetRequestLayer::new("/liveness", "system_liveness")?)
+            .layer(ProxyGetRequestLayer::new("/readiness", "system_readiness")?)
+            .layer(ProxyGetRequestLayer::new("/version", "version")?);
+
 
         let server = ServerBuilder::default()
             .set_host_filtering(AllowHosts::Any)
             .set_middleware(middleware)
+            .http_only()
             .build(address)
             .await?;
 

@@ -1,3 +1,6 @@
+=== 0.14.0 ===
+use jsonrpsee from crates.io 0.18.2
+add health endpoints to jsonrpc server - liveness, readiness, version
 === 0.13.0 ===
 solana backoff added
 === 0.12.1 ===
