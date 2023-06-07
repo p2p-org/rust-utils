@@ -24,25 +24,20 @@
 //! ```
 
 use anyhow::Context as anyhowContext;
-use http::header::HeaderName;
-use jsonrpsee::http_client::{HeaderMap, HeaderValue, Middleware};
 use opentelemetry::{
     global,
-    propagation::Injector,
     runtime,
     sdk::{propagation::TraceContextPropagator, trace as sdktrace, Resource},
 };
 use opentelemetry_semantic_conventions as semcov;
 use sentry::ClientInitGuard;
 use serde::Deserialize;
-use std::str::FromStr;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_stackdriver::Stackdriver;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
-use tracing::{subscriber::set_global_default, Span, Subscriber};
-use tracing_opentelemetry::OpenTelemetrySpanExt;
+use tracing::{subscriber::set_global_default, Subscriber};
 
 pub struct Telemetry(Option<ClientInitGuard>);
 
@@ -187,44 +182,6 @@ impl Default for TracingSettings {
 
 fn default_spec() -> String {
     "info".into()
-}
-
-pub struct TracePropagatorMiddleware;
-
-/// Injects the given OpenTelemetry Context into headers to allow propagation downstream.
-#[async_trait::async_trait]
-impl Middleware for TracePropagatorMiddleware {
-    async fn handle(&self, headers: &mut HeaderMap) {
-        let context = Span::current().context();
-
-        global::get_text_map_propagator(|injector| {
-            injector.inject_context(&context, &mut HeadersCarrier::new(headers))
-        });
-    }
-}
-
-// "traceparent" => https://www.w3.org/TR/trace-context/#trace-context-http-headers-format
-
-/// Injector used via opentelemetry propagator to tell the extractor how to insert the "traceparent" header value
-/// This will allow the propagator to inject opentelemetry context into a standard data structure. Will basically
-/// insert a "traceparent" string value "{version}-{trace_id}-{span_id}-{trace-flags}" of the spans context into the
-/// headers. Listeners can then re-hydrate the context to add additional spans to the same trace.
-struct HeadersCarrier<'a> {
-    headers: &'a mut HeaderMap,
-}
-
-impl<'a> HeadersCarrier<'a> {
-    pub fn new(headers: &'a mut HeaderMap) -> Self {
-        HeadersCarrier { headers }
-    }
-}
-
-impl<'a> Injector for HeadersCarrier<'a> {
-    fn set(&mut self, key: &str, value: String) {
-        let header_name = HeaderName::from_str(key).expect("Must be a header name value");
-        let header_value = HeaderValue::from_str(&value).expect("Must be a header value");
-        self.headers.insert(header_name, header_value);
-    }
 }
 
 /// call with service name and version
