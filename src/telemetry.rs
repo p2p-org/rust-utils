@@ -25,8 +25,7 @@
 
 use anyhow::Context as anyhowContext;
 use opentelemetry::{
-    global,
-    runtime,
+    global, runtime,
     sdk::{propagation::TraceContextPropagator, trace as sdktrace, Resource},
 };
 use opentelemetry_semantic_conventions as semcov;
