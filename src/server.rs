@@ -2,8 +2,7 @@ use axum_tracing_opentelemetry::opentelemetry_tracing_layer;
 use jsonrpsee::{
     core::error::Error,
     server::{
-        logger::Logger, middleware::proxy_get_request::ProxyGetRequestLayer, AllowHosts,
-        ServerBuilder as RpcServerBuilder, ServerHandle,
+        logger::Logger, middleware::proxy_get_request::ProxyGetRequestLayer, AllowHosts, ServerBuilder, ServerHandle,
     },
     Methods,
 };
@@ -11,109 +10,56 @@ use std::{future::Future, net::SocketAddr};
 use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
 use tower::{
     layer::util::{Identity, Stack},
+    util::Either,
     Layer, Service, ServiceBuilder,
 };
-use tower_http::cors::CorsLayer;
+use tower_http::{
+    classify::{ServerErrorsAsFailures, SharedClassifier},
+    cors::CorsLayer,
+    trace::TraceLayer,
+};
 
 pub struct Server {
     address: SocketAddr,
     handle: ServerHandle,
 }
 
-pub struct ServerBuilder<A, L> {
-    address: A,
-    middleware: ServiceBuilder<L>,
-}
-
-impl<A> ServerBuilder<A, Identity>
-where
-    A: ToSocketAddrs,
-{
-    pub fn new(address: A) -> Self {
-        Self {
-            address,
-            middleware: ServiceBuilder::default(),
-        }
-    }
-}
-
-impl<A, L> ServerBuilder<A, L> {
-    pub async fn build(self, service: impl Into<Methods>) -> Result<Server, Error> {
-        let server = RpcServerBuilder::default()
-            .set_host_filtering(AllowHosts::Any)
-            .set_middleware(self.middleware)
-            .http_only()
-            .build(self.address)
-            .await?;
-        Ok(Server {
-            address: server.local_addr()?,
-            handle: server.start(service)?,
-        })
-    }
-
-    pub async fn build_with_default_middleware(self, service: impl Into<Methods>) -> Result<Server, Error> {
-        let service = service.into();
-        self.map_middleware(|middleware| {
-            middleware
-                .layer(opentelemetry_tracing_layer())
-                .layer(CorsLayer::permissive())
-                .option_layer(
-                    service
-                        .method("system_liveness")
-                        .map(|_| ProxyGetRequestLayer::new("/liveness", "system_liveness").unwrap()),
-                )
-                .option_layer(
-                    service
-                        .method("system_readiness")
-                        .map(|_| ProxyGetRequestLayer::new("/readiness", "system_readiness").unwrap()),
-                )
-                .option_layer(
-                    service
-                        .method("version")
-                        .map(|_| ProxyGetRequestLayer::new("/version", "version").unwrap()),
-                )
-        })
-        .build(service)
-        .await
-    }
-
-    pub fn middleware<T>(self, middleware: ServiceBuilder<T>) -> ServerBuilder<A, T> {
-        Self {
-            address: self.address,
-            middleware,
-        }
-    }
-
-    pub fn map_middleware<F, T>(self, f: F) -> ServerBuilder<A, T>
-    where
-        F: FnOnce(ServiceBuilder<L>) -> ServiceBuilder<T>,
-    {
-        Self {
-            address: self.address,
-            middleware: f(self.middleware),
-        }
-    }
-
-    pub fn add_get_route(
-        self,
-        path: impl Into<String>,
-        method: impl Into<String>,
-    ) -> ServerBuilder<A, Stack<ProxyGetRequestLayer, L>> {
-        let mut path = path.into();
-        if !path.starts_with("/") {
-            path = format!("/{path}");
-        }
-
-        self.map_middleware(|middleware| {
-            middleware.layer(ProxyGetRequestLayer::new(path, method).expect("Invalid URL"))
-        })
-    }
-}
-
 impl Server {
-    /// Create and start a new server from TcpListener
+    pub fn from_handle(address: SocketAddr, handle: ServerHandle) -> Self {
+        Self { address, handle }
+    }
+
     pub async fn with_address(address: impl ToSocketAddrs, service: impl Into<Methods>) -> Result<Self, Error> {
-        ServerBuilder::new(address).build_with_default_middleware(service).await
+        let middleware = ServiceBuilder::default()
+            .layer(opentelemetry_tracing_layer())
+            .layer(CorsLayer::permissive())
+            .option_layer(
+                service
+                    .method("system_liveness")
+                    .map(|_| ProxyGetRequestLayer::new("/liveness", "system_liveness").unwrap()),
+            )
+            .option_layer(
+                service
+                    .method("system_readiness")
+                    .map(|_| ProxyGetRequestLayer::new("/readiness", "system_readiness").unwrap()),
+            )
+            .option_layer(
+                service
+                    .method("version")
+                    .map(|_| ProxyGetRequestLayer::new("/version", "version").unwrap()),
+            );
+
+        let server = ServerBuilder::default()
+            .set_host_filtering(AllowHosts::Any)
+            .set_middleware(middleware)
+            .http_only()
+            .build(address)
+            .await?;
+
+        Ok(Self {
+            address: server.local_addr()?,
+            handle: server.start(service.into())?,
+        })
     }
 
     pub async fn stop(self) -> Result<(), Error> {
