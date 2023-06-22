@@ -1,23 +1,13 @@
 use axum_tracing_opentelemetry::opentelemetry_tracing_layer;
 use jsonrpsee::{
     core::error::Error,
-    server::{
-        logger::Logger, middleware::proxy_get_request::ProxyGetRequestLayer, AllowHosts, ServerBuilder, ServerHandle,
-    },
+    server::{middleware::proxy_get_request::ProxyGetRequestLayer, AllowHosts, ServerBuilder, ServerHandle},
     Methods,
 };
 use std::{future::Future, net::SocketAddr};
 use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
-use tower::{
-    layer::util::{Identity, Stack},
-    util::Either,
-    Layer, Service, ServiceBuilder,
-};
-use tower_http::{
-    classify::{ServerErrorsAsFailures, SharedClassifier},
-    cors::CorsLayer,
-    trace::TraceLayer,
-};
+use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
 
 pub struct Server {
     address: SocketAddr,
@@ -30,6 +20,7 @@ impl Server {
     }
 
     pub async fn with_address(address: impl ToSocketAddrs, service: impl Into<Methods>) -> Result<Self, Error> {
+        let service = service.into();
         let middleware = ServiceBuilder::default()
             .layer(opentelemetry_tracing_layer())
             .layer(CorsLayer::permissive())
@@ -58,7 +49,7 @@ impl Server {
 
         Ok(Self {
             address: server.local_addr()?,
-            handle: server.start(service.into())?,
+            handle: server.start(service)?,
         })
     }
 
