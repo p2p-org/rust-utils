@@ -15,7 +15,6 @@ borsh = { version = "0.9.3", optional = true }
 bs58 = { version = "0.4.0", optional = true }
 chrono = { version = "0.4", optional = true }
 config = { version = "0.13", features = ["toml"], optional = true }
-diesel = { version = "1.4", features = ["mysql", "r2d2"], optional = true }
 ed25519-dalek = { version = "1.0.1", optional = true }
 ethereum-types = { version = "0.13", optional = true }
 flexi_logger = { version = "0.22", optional = true }
@@ -73,50 +72,16 @@ claim = "0.5.0"
 
 [features]
 crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
-db = ["diesel", "scheduled-thread-pool"]
+db = ["sqlx/postgres"]
 default = []
 error = ["strum", "strum_macros", "thiserror"]
 ethereum = ["rustc-hex", "serde_with", "ethereum-types", "sqlx", "thiserror"]
 logger = ["sentry", "sentry-log", "log", "flexi_logger", "anyhow", "chrono"]
 macros = []
-rabbitmq = [
-  "anyhow",
-  "async-trait",
-  "backoff",
-  "futures",
-  "lapin",
-  "log",
-  "tokio",
-  "tokio-executor-trait",
-  "tokio-reactor-trait",
-  "stream-cancel",
-]
+rabbitmq = ["anyhow", "async-trait", "backoff", "futures", "lapin", "log", "tokio", "tokio-executor-trait", "tokio-reactor-trait", "stream-cancel"]
 rpc = ["gcloud-env", "lazy_static", "serde_with"]
-server = [
-  "jsonrpsee",
-  "tokio",
-  "tracing",
-  "tower-http",
-  "tower",
-  "axum-tracing-opentelemetry",
-]
+server = ["jsonrpsee", "tokio", "tracing", "tower-http", "tower", "axum-tracing-opentelemetry"]
 settings = ["config", "log", "serde_with", "paste", "thiserror"]
 solana-backoff = ["backoff", "tracing", "solana-client", "futures", "tokio"]
-telemetry = [
-  "tracing",
-  "opentelemetry",
-  "opentelemetry-jaeger",
-  "tracing-opentelemetry",
-  "tracing-subscriber",
-  "tracing-bunyan-formatter",
-  "tracing-log",
-  "tracing-stackdriver",
-  "sentry-tracing",
-  "sentry",
-  "jsonrpsee",
-  "anyhow",
-  "async-trait",
-  "http",
-  "opentelemetry-semantic-conventions",
-]
+telemetry = ["tracing", "opentelemetry", "opentelemetry-jaeger", "tracing-opentelemetry", "tracing-subscriber", "tracing-bunyan-formatter", "tracing-log", "tracing-stackdriver", "sentry-tracing", "sentry", "jsonrpsee", "anyhow", "async-trait", "http", "opentelemetry-semantic-conventions"]
 tokens = ["error", "borsh", "solana-client", "solana-sdk", "reqwest", "anyhow", "log"]

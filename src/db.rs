@@ -1,68 +1,94 @@
-use std::{ops::Deref, sync::Arc, time::Duration};
-
-use diesel::{
-    mysql::MysqlConnection,
-    r2d2::{ConnectionManager, Pool, PoolError, PooledConnection},
+use async_trait::async_trait;
+use std::{
+    ops::{Deref, DerefMut},
+    time::Duration,
 };
-use scheduled_thread_pool::ScheduledThreadPool;
+
 use serde::Deserialize;
+use serde_with::{serde_as, DurationMilliSeconds};
+use sqlx::{postgres::PgPoolOptions, Error, PgPool};
 
-pub type DbConnectionPool = Pool<ConnectionManager<MysqlConnection>>;
-
+#[serde_as]
 #[derive(Debug, Deserialize, Clone)]
-pub struct DatabaseSettings {
-    #[serde(default)]
+pub struct DbSettings {
     pub url: String,
-    #[serde(default)]
-    pub connection_pool_size: u32,
-    #[serde(default)]
-    pub connection_ttl_secs: u64,
-    #[serde(default)]
-    pub connection_timeout_millis: u64,
-    #[serde(default)]
-    pub thread_pool_size: usize,
+    #[serde(default = "DbSettings::default_pool_size")]
+    pub pool_size: u32,
+    #[serde(rename = "connect_timeout_ms", default = "DbSettings::default_connect_timeout")]
+    #[serde_as(as = "DurationMilliSeconds")]
+    pub connect_timeout: Duration,
 }
 
-pub enum DbConnection {
-    Simple(MysqlConnection),
-    Pooled(DbConnectionPool),
-}
+impl DbSettings {
+    fn default_pool_size() -> u32 {
+        10
+    }
 
-impl DbConnection {
-    pub fn get(&self) -> Result<DbConnectionRef, PoolError> {
-        Ok(match self {
-            DbConnection::Simple(conn) => DbConnectionRef::Simple(conn),
-            DbConnection::Pooled(pool) => DbConnectionRef::Pooled(pool.get()?),
-        })
+    fn default_connect_timeout() -> Duration {
+        Duration::from_secs(60)
     }
 }
 
-pub enum DbConnectionRef<'a> {
-    Simple(&'a MysqlConnection),
-    Pooled(PooledConnection<ConnectionManager<MysqlConnection>>),
+#[async_trait]
+pub trait Repo {
+    type Access: Access;
+    async fn access(&self) -> Result<Self::Access, Error>;
 }
 
-impl Deref for DbConnectionRef<'_> {
-    type Target = MysqlConnection;
+#[async_trait]
+pub trait Access {
+    async fn done(self) -> Result<(), Error>;
+}
+
+pub struct DbRepo {
+    pool: PgPool,
+}
+
+impl DbRepo {
+    pub async fn connect(settings: &DbSettings) -> Result<Self, Error> {
+        PgPoolOptions::new()
+            .max_connections(settings.pool_size)
+            .acquire_timeout(settings.connect_timeout)
+            .connect(&settings.url)
+            .await
+            .map(Self::from)
+    }
+}
+
+impl From<PgPool> for DbRepo {
+    fn from(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl Repo for DbRepo {
+    type Access = DbAccess;
+
+    async fn access(&self) -> Result<Self::Access, sqlx::Error> {
+        self.pool.begin().await.map(DbAccess)
+    }
+}
+
+pub struct DbAccess(sqlx::Transaction<'static, sqlx::Postgres>);
+
+#[async_trait]
+impl Access for DbAccess {
+    async fn done(self) -> Result<(), sqlx::Error> {
+        self.0.commit().await
+    }
+}
+
+impl Deref for DbAccess {
+    type Target = sqlx::Transaction<'static, sqlx::Postgres>;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            DbConnectionRef::Simple(conn) => conn,
-            DbConnectionRef::Pooled(pooled) => pooled,
-        }
+        &self.0
     }
 }
 
-pub fn create_connection_pool(settings: &DatabaseSettings) -> DbConnectionPool {
-    let manager = ConnectionManager::<MysqlConnection>::new(&settings.url);
-    Pool::builder()
-        .max_size(settings.connection_pool_size)
-        .max_lifetime(Some(Duration::from_secs(settings.connection_ttl_secs)))
-        .connection_timeout(Duration::from_millis(settings.connection_timeout_millis))
-        .thread_pool(Arc::new(ScheduledThreadPool::with_name(
-            "r2d2-worker-{}",
-            settings.thread_pool_size,
-        )))
-        .build(manager)
-        .expect("Failed to create DB connection pool")
+impl DerefMut for DbAccess {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
