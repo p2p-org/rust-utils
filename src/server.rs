@@ -1,15 +1,13 @@
 use axum_tracing_opentelemetry::opentelemetry_tracing_layer;
 use jsonrpsee::{
     core::error::Error,
-    server::{AllowHosts, RpcModule, ServerBuilder, ServerHandle},
+    server::{middleware::proxy_get_request::ProxyGetRequestLayer, AllowHosts, ServerBuilder, ServerHandle},
+    Methods,
 };
-use std::{
-    future::Future,
-    net::{SocketAddr},
-};
+use std::{future::Future, net::SocketAddr};
 use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
+use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
-use jsonrpsee::server::middleware::proxy_get_request::ProxyGetRequestLayer;
 
 pub struct Server {
     address: SocketAddr,
@@ -17,16 +15,30 @@ pub struct Server {
 }
 
 impl Server {
-    /// Create and start a new server from TcpListener
-    pub async fn with_address<Ctx>(address: impl ToSocketAddrs, service: RpcModule<Ctx>) -> Result<Self, Error> {
-        let cors = CorsLayer::permissive();
-        let middleware = tower::ServiceBuilder::new()
-            .layer(opentelemetry_tracing_layer())
-            .layer(cors)
-            .layer(ProxyGetRequestLayer::new("/liveness", "system_liveness")?)
-            .layer(ProxyGetRequestLayer::new("/readiness", "system_readiness")?)
-            .layer(ProxyGetRequestLayer::new("/version", "version")?);
+    pub fn from_handle(address: SocketAddr, handle: ServerHandle) -> Self {
+        Self { address, handle }
+    }
 
+    pub async fn with_address(address: impl ToSocketAddrs, service: impl Into<Methods>) -> Result<Self, Error> {
+        let service = service.into();
+        let middleware = ServiceBuilder::default()
+            .layer(opentelemetry_tracing_layer())
+            .layer(CorsLayer::permissive())
+            .option_layer(
+                service
+                    .method("system_liveness")
+                    .map(|_| ProxyGetRequestLayer::new("/liveness", "system_liveness").unwrap()),
+            )
+            .option_layer(
+                service
+                    .method("system_readiness")
+                    .map(|_| ProxyGetRequestLayer::new("/readiness", "system_readiness").unwrap()),
+            )
+            .option_layer(
+                service
+                    .method("version")
+                    .map(|_| ProxyGetRequestLayer::new("/version", "version").unwrap()),
+            );
 
         let server = ServerBuilder::default()
             .set_host_filtering(AllowHosts::Any)

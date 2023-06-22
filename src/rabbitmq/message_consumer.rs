@@ -147,7 +147,10 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> MessageCons
         }
         .try_connect_and_consume_core();
 
-        Self::Cancellation { trigger, tripwire: handle }
+        Self::Cancellation {
+            trigger,
+            tripwire: handle,
+        }
     }
 }
 
