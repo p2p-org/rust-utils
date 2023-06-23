@@ -1,16 +1,29 @@
-use borsh::BorshSerialize;
 use ed25519_dalek::{Keypair, PublicKey, Signature, SignatureError, Signer, Verifier, PUBLIC_KEY_LENGTH};
 
 pub trait KeypairExt {
     type Signature;
     fn new_rand() -> Self;
-    fn sign_borsh<M: borsh::BorshSerialize>(&self, message: &M) -> Self::Signature;
+    fn sign_slice(&self, message: &[u8]) -> Self::Signature;
+
+    fn sign_borsh<M: borsh::BorshSerialize>(&self, message: &M) -> Self::Signature {
+        let message = borsh::to_vec(message).expect("message must be serializable");
+        self.sign_slice(&message)
+    }
 }
 
 pub trait PublicKeyExt<S> {
     fn new_zeroed() -> Self;
+    fn from_base58(value: &str) -> Option<Self>
+    where
+        Self: Sized;
+
     fn to_base58(&self) -> String;
-    fn verify_borsh<M: borsh::BorshSerialize>(&self, message: &M, signature: &S) -> Result<(), SignatureError>;
+    fn verify_slice(&self, message: &[u8], signature: &S) -> Result<(), SignatureError>;
+
+    fn verify_borsh<M: borsh::BorshSerialize>(&self, message: &M, signature: &S) -> Result<(), SignatureError> {
+        let message = borsh::to_vec(message).expect("message must be serializable");
+        self.verify_slice(&message, signature)
+    }
 }
 
 impl KeypairExt for Keypair {
@@ -21,9 +34,8 @@ impl KeypairExt for Keypair {
         Keypair::generate(&mut rng)
     }
 
-    fn sign_borsh<M: BorshSerialize>(&self, message: &M) -> Signature {
-        let message = borsh::to_vec(message).expect("message must be serializable");
-        self.sign(&message)
+    fn sign_slice(&self, message: &[u8]) -> Signature {
+        self.sign(message)
     }
 }
 
@@ -31,21 +43,98 @@ impl PublicKeyExt<Signature> for PublicKey {
     fn new_zeroed() -> Self {
         PublicKey::from_bytes(&[0; PUBLIC_KEY_LENGTH]).unwrap()
     }
+    fn from_base58(value: &str) -> Option<Self> {
+        let bytes = bs58::decode(value).into_vec().ok()?;
+        PublicKey::from_bytes(&bytes).ok()
+    }
 
     fn to_base58(&self) -> String {
         bs58::encode(self).into_string()
     }
 
-    fn verify_borsh<M: BorshSerialize>(&self, message: &M, signature: &Signature) -> Result<(), SignatureError> {
-        let message = borsh::to_vec(message).expect("message must be serializable");
+    fn verify_slice(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.verify(&message, signature)
     }
 }
 
-#[cfg(feature = "solana-sdk")]
+#[cfg(feature = "wrappers")]
+mod base58 {
+    use crate::wrappers::Base58;
+    use ed25519_dalek::{Keypair, PublicKey, Signature, SignatureError};
+
+    impl<'a> TryFrom<&'a [u8]> for Base58<PublicKey> {
+        type Error = SignatureError;
+
+        fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+            let pk = PublicKey::from_bytes(value)?;
+            Ok(Base58(pk))
+        }
+    }
+
+    impl<'a> TryFrom<&'a [u8]> for Base58<Keypair> {
+        type Error = SignatureError;
+
+        fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+            let pk = Keypair::from_bytes(value)?;
+            Ok(Base58(pk))
+        }
+    }
+
+    impl<'a> TryFrom<&'a [u8]> for Base58<Signature> {
+        type Error = SignatureError;
+
+        fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+            let pk = Signature::from_bytes(value)?;
+            Ok(Base58(pk))
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    mod solana {
+        use crate::wrappers::Base58;
+        use ed25519_dalek::SignatureError;
+        use solana_sdk::{
+            pubkey::Pubkey,
+            signature::{Keypair, ParseSignatureError, Signature},
+        };
+        use std::{array::TryFromSliceError, mem::size_of};
+
+        impl<'a> TryFrom<&'a [u8]> for Base58<Pubkey> {
+            type Error = TryFromSliceError;
+
+            fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+                let pk = Pubkey::try_from(value)?;
+                Ok(Base58(pk))
+            }
+        }
+
+        impl<'a> TryFrom<&'a [u8]> for Base58<Keypair> {
+            type Error = SignatureError;
+
+            fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+                let pk = Keypair::from_bytes(value)?;
+                Ok(Base58(pk))
+            }
+        }
+
+        impl<'a> TryFrom<&'a [u8]> for Base58<Signature> {
+            type Error = ParseSignatureError;
+
+            fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+                if value.len() != size_of::<Signature>() {
+                    return Err(ParseSignatureError::WrongSize);
+                }
+
+                let signature = Signature::new(value);
+                Ok(Base58(signature))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "solana")]
 mod solana {
     use super::{KeypairExt, PublicKeyExt};
-    use borsh::BorshSerialize;
     use ed25519_dalek::SignatureError;
     use solana_sdk::{
         pubkey::Pubkey,
@@ -60,9 +149,8 @@ mod solana {
             Keypair::new()
         }
 
-        fn sign_borsh<M: BorshSerialize>(&self, message: &M) -> Self::Signature {
-            let message = borsh::to_vec(message).expect("message must be serializable");
-            self.sign_message(&message)
+        fn sign_slice(&self, message: &[u8]) -> Self::Signature {
+            self.sign_message(message)
         }
     }
 
@@ -70,13 +158,15 @@ mod solana {
         fn new_zeroed() -> Self {
             Pubkey::default()
         }
+        fn from_base58(value: &str) -> Option<Self> {
+            value.parse().ok()
+        }
 
         fn to_base58(&self) -> String {
             self.to_string()
         }
 
-        fn verify_borsh<M: BorshSerialize>(&self, message: &M, signature: &Signature) -> Result<(), SignatureError> {
-            let message = borsh::to_vec(message).expect("message must be serializable");
+        fn verify_slice(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
             if signature.verify(self.as_ref(), &message) {
                 Ok(())
             } else {

@@ -71,6 +71,8 @@ tracing-subscriber = { version = "0.3", features = [
 claim = "0.5.0"
 
 [features]
+wrappers = ["bs58"]
+solana = ["solana-sdk"]
 crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
 db = ["sqlx/postgres"]
 default = []
