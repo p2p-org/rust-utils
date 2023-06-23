@@ -13,7 +13,9 @@ pub trait KeypairExt {
 
 pub trait PublicKeyExt<S> {
     fn new_zeroed() -> Self;
-    fn from_base58(value: &str) -> Option<Self>;
+    fn from_base58(value: &str) -> Option<Self>
+    where
+        Self: Sized;
 
     fn to_base58(&self) -> String;
     fn verify_slice(&self, message: &[u8], signature: &S) -> Result<(), SignatureError>;
@@ -52,6 +54,81 @@ impl PublicKeyExt<Signature> for PublicKey {
 
     fn verify_slice(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.verify(&message, signature)
+    }
+}
+
+#[cfg(feature = "base58")]
+mod base58 {
+    use crate::base58::Base58;
+    use ed25519_dalek::{Keypair, PublicKey, Signature, SignatureError};
+
+    impl<'a> TryFrom<&'a [u8]> for Base58<PublicKey> {
+        type Error = SignatureError;
+
+        fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+            let pk = PublicKey::from_bytes(value)?;
+            Ok(Base58(pk))
+        }
+    }
+
+    impl<'a> TryFrom<&'a [u8]> for Base58<Keypair> {
+        type Error = SignatureError;
+
+        fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+            let pk = Keypair::from_bytes(value)?;
+            Ok(Base58(pk))
+        }
+    }
+
+    impl<'a> TryFrom<&'a [u8]> for Base58<Signature> {
+        type Error = SignatureError;
+
+        fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+            let pk = Signature::from_bytes(value)?;
+            Ok(Base58(pk))
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    mod solana {
+        use crate::base58::Base58;
+        use ed25519_dalek::SignatureError;
+        use solana_sdk::{
+            pubkey::Pubkey,
+            signature::{Keypair, ParseSignatureError, Signature},
+        };
+        use std::{array::TryFromSliceError, mem::size_of};
+
+        impl<'a> TryFrom<&'a [u8]> for Base58<Pubkey> {
+            type Error = TryFromSliceError;
+
+            fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+                let pk = Pubkey::try_from(value)?;
+                Ok(Base58(pk))
+            }
+        }
+
+        impl<'a> TryFrom<&'a [u8]> for Base58<Keypair> {
+            type Error = SignatureError;
+
+            fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+                let pk = Keypair::from_bytes(value)?;
+                Ok(Base58(pk))
+            }
+        }
+
+        impl<'a> TryFrom<&'a [u8]> for Base58<Signature> {
+            type Error = ParseSignatureError;
+
+            fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+                if value.len() != size_of::<Signature>() {
+                    return Err(ParseSignatureError::WrongSize);
+                }
+
+                let signature = Signature::new(value);
+                Ok(Base58(signature))
+            }
+        }
     }
 }
 
