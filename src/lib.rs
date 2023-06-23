@@ -1,5 +1,3 @@
-#[cfg(feature = "base58")]
-pub mod base58;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 #[cfg(feature = "db")]
@@ -20,6 +18,8 @@ pub mod settings;
 pub mod telemetry;
 #[cfg(feature = "tokens")]
 pub mod tokens;
+#[cfg(feature = "wrappers")]
+pub mod wrappers;
 
 #[cfg(feature = "ethereum")]
 pub mod ethereum;

@@ -57,9 +57,9 @@ impl PublicKeyExt<Signature> for PublicKey {
     }
 }
 
-#[cfg(feature = "base58")]
+#[cfg(feature = "wrappers")]
 mod base58 {
-    use crate::base58::Base58;
+    use crate::wrappers::Base58;
     use ed25519_dalek::{Keypair, PublicKey, Signature, SignatureError};
 
     impl<'a> TryFrom<&'a [u8]> for Base58<PublicKey> {
@@ -91,7 +91,7 @@ mod base58 {
 
     #[cfg(feature = "solana")]
     mod solana {
-        use crate::base58::Base58;
+        use crate::wrappers::Base58;
         use ed25519_dalek::SignatureError;
         use solana_sdk::{
             pubkey::Pubkey,
