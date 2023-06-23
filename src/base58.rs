@@ -4,6 +4,11 @@ use std::{
     str::FromStr,
 };
 
+#[serde_with::serde_as]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Hash, PartialOrd, Ord)]
+pub struct Wrapped<T>(#[serde_as(as = "serde_with::DisplayFromStr")] T);
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub struct Base58<T>(T);
 
 impl<T: AsRef<[u8]>> Display for Base58<T> {
