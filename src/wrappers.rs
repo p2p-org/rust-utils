@@ -58,16 +58,23 @@ impl<T: AsRef<[u8]>> Display for Base58<T> {
     }
 }
 
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum Base58Error<T> {
+    #[error("{0}")]
+    Error(T),
+    #[error("base58 decode error: {0}")]
+    Decode(#[from] bs58::decode::Error),
+}
+
 impl<T, E> FromStr for Base58<T>
 where
     Base58<T>: for<'a> TryFrom<&'a [u8], Error = E>,
-    E: From<bs58::decode::Error>,
 {
-    type Err = E;
+    type Err = Base58Error<E>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = bs58::decode(s).into_vec()?;
-        (&*bytes).try_into()
+        (&*bytes).try_into().map_err(Base58Error::Error)
     }
 }
 
