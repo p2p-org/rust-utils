@@ -1,5 +1,8 @@
-use serde::{Deserialize, Serialize};
+use jsonrpsee::core::Cow;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_with::{DeserializeAs, Same, SerializeAs};
 use std::{
+    convert::Infallible,
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
     str::FromStr,
@@ -36,7 +39,19 @@ where
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
-pub struct Base58<T>(pub T);
+pub struct Base58<T = Same>(pub T);
+
+impl<T> Base58<T> {
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
+impl<T> From<T> for Base58<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
 
 impl<T> Deref for Base58<T> {
     type Target = T;
@@ -78,6 +93,31 @@ where
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("invalid slice size {0}, expected {1}")]
+pub struct WrongSliceSize(usize, usize);
+
+impl<'a, const N: usize> TryFrom<&'a [u8]> for Base58<[u8; N]> {
+    type Error = WrongSliceSize;
+
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        if value.len() != N {
+            return Err(WrongSliceSize(value.len(), N));
+        }
+        let mut buf = [0; N];
+        buf[..].clone_from_slice(value);
+        Ok(Self(buf))
+    }
+}
+
+impl<'a> TryFrom<&'a [u8]> for Base58<Vec<u8>> {
+    type Error = Infallible;
+
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        Ok(Base58(value.into()))
+    }
+}
+
 impl<'a, 'de: 'a, T> Deserialize<'de> for Base58<T>
 where
     Base58<T>: FromStr,
@@ -85,10 +125,10 @@ where
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
-        let bytes = String::deserialize(deserializer)?;
-        let bytes = Base58::from_str(&bytes).map_err(serde::de::Error::custom)?;
+        let bytes = Cow::<'de, str>::deserialize(deserializer)?;
+        let bytes = Base58::from_str(&*bytes).map_err(serde::de::Error::custom)?;
         Ok(bytes)
     }
 }
@@ -96,9 +136,30 @@ where
 impl<T: AsRef<[u8]>> Serialize for Base58<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         self.to_string().serialize(serializer)
+    }
+}
+
+impl<'de, T> DeserializeAs<'de, T> for Base58
+where
+    Base58<T>: Deserialize<'de>,
+{
+    fn deserialize_as<D>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Base58::deserialize(deserializer)?.0)
+    }
+}
+
+impl<T: AsRef<[u8]>> SerializeAs<T> for Base58 {
+    fn serialize_as<S>(source: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&bs58::encode(source).into_string())
     }
 }
 
@@ -185,5 +246,44 @@ mod db {
             let bytes = Base58::from_str(&s).map_err(|e| Box::new(e) as BoxDynError)?;
             Ok(bytes)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Base58;
+    use serde::{Deserialize, Serialize};
+    use serde_with::serde_as;
+
+    #[test]
+    fn base58_serde_as() {
+        #[serde_as]
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct Data {
+            #[serde_as(as = "Base58")]
+            value: Vec<u8>,
+        }
+
+        let data = Data {
+            value: vec![1, 2, 3, 4, 5],
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let data1 = serde_json::from_str(&json).unwrap();
+        assert_eq!(data, data1);
+    }
+
+    #[test]
+    fn base58_serde() {
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct Data {
+            value: Base58<Vec<u8>>,
+        }
+
+        let data = Data {
+            value: Base58(vec![1, 2, 3, 4, 5]),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let data1 = serde_json::from_str(&json).unwrap();
+        assert_eq!(data, data1);
     }
 }

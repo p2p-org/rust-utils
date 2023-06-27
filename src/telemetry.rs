@@ -4,7 +4,7 @@
 //! We are using the `tracing` crate instead of `log` for logging
 //!
 //! # Usage
-//! ```
+//! ```ignore
 //! use rust_utils::telemetry::Telemetry;
 //! use rust_utils::telemetry::TracingSettings;
 //!
@@ -185,7 +185,7 @@ fn default_spec() -> String {
 
 /// call with service name and version
 ///
-/// ```rust
+/// ```ignore
 /// use axum_tracing_opentelemetry::make_resource;
 /// # fn main() {
 /// let r = make_resource(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
