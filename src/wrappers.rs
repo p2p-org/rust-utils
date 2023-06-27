@@ -45,6 +45,9 @@ impl<T> Base58<T> {
     pub fn into_inner(self) -> T {
         self.0
     }
+    pub fn new(value: T) -> Self {
+        Self(value)
+    }
 }
 
 impl<T> From<T> for Base58<T> {
