@@ -72,10 +72,10 @@ tracing-subscriber = { version = "0.3", features = [
 claim = "0.5.0"
 
 [features]
-wrappers = ["bs58"]
+wrappers = ["bs58", "jsonrpsee", "thiserror", "serde_with"]
 solana = ["solana-sdk"]
 crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
-db = ["sqlx/postgres"]
+db = ["sqlx/postgres", "async-trait", "serde_with"]
 default = []
 error = ["strum", "strum_macros", "thiserror"]
 ethereum = ["rustc-hex", "serde_with", "ethereum-types", "sqlx", "thiserror"]
