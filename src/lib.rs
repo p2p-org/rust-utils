@@ -1,3 +1,5 @@
+#[cfg(feature = "client")]
+pub mod client;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 #[cfg(feature = "db")]
