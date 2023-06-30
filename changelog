@@ -1,3 +1,11 @@
+=== 1.0.1 ===
+update serde_with to 3 version
+improve Base58 and db integration
+=== 1.0.0 ===
+improve server feature - more flexible builder for servers
+get rid of `diesel`
+rewrite db feature on sqlx
+add wrappers feature with Base58 and AsString generics
 === 0.14.0 ===
 use jsonrpsee from crates.io 0.18.2
 add health endpoints to jsonrpc server - liveness, readiness, version
