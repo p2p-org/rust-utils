@@ -187,6 +187,10 @@ mod db {
         fn type_info() -> DB::TypeInfo {
             <String as Type<DB>>::type_info()
         }
+
+        fn compatible(ty: &DB::TypeInfo) -> bool {
+            <String as Type<DB>>::compatible(ty)
+        }
     }
 
     impl<'q, T, DB> Encode<'q, DB> for AsString<T>
@@ -223,6 +227,10 @@ mod db {
     {
         fn type_info() -> DB::TypeInfo {
             <String as Type<DB>>::type_info()
+        }
+
+        fn compatible(ty: &DB::TypeInfo) -> bool {
+            <String as Type<DB>>::compatible(ty)
         }
     }
 
