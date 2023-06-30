@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "rust-utils"
-version = "1.0.0"
+version = "1.0.1"
 
 [lib]
 crate-type = ["lib"]
@@ -44,7 +44,7 @@ sentry-log = { version = "0.26.0", optional = true }
 sentry-tracing = { version = "0.27", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_with = { version = "1.12", optional = true }
+serde_with = { version = "3", optional = true }
 solana-client = { version = "1.14", optional = true }
 solana-sdk = { version = "1.14", optional = true }
 sqlx = { version = "0.6", features = ["runtime-tokio-native-tls"], optional = true }
@@ -72,10 +72,10 @@ tracing-subscriber = { version = "0.3", features = [
 claim = "0.5.0"
 
 [features]
-wrappers = ["bs58"]
+wrappers = ["bs58", "jsonrpsee", "thiserror", "serde_with"]
 solana = ["solana-sdk"]
 crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
-db = ["sqlx/postgres"]
+db = ["sqlx/postgres", "async-trait", "serde_with"]
 default = []
 error = ["strum", "strum_macros", "thiserror"]
 ethereum = ["rustc-hex", "serde_with", "ethereum-types", "sqlx", "thiserror"]
