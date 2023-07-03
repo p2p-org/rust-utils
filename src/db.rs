@@ -4,12 +4,12 @@ use std::{
     time::Duration,
 };
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationMilliSeconds};
 use sqlx::{postgres::PgPoolOptions, Error, PgPool};
 
 #[serde_as]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DbSettings {
     #[serde(default = "DbSettings::default_url")]
     pub url: String,
