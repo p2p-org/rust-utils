@@ -1,3 +1,8 @@
+=== 1.1.0 ===
+remove `impl_db_settings` macro
+implement Deref, Clone, Debug for `DbRepo` struct
+implement `from_url` method and `Default` trait for `DbSettings` struct
+fix `impl_settings` macro: now supports any types
 === 1.0.1 ===
 update serde_with to 3 version
 improve Base58 and db integration
