@@ -120,7 +120,7 @@ macro_rules! impl_settings {
         $( #[ $attr:meta ] )*
         $vis:vis struct $name:ident { $(
             $( #[ $childm:meta ] )*
-            $vis_f:vis $field:ident: $type:ident => $def:expr
+            $vis_f:vis $field:ident: $type:ty => $def:expr
         ),* $(,)?}
     )*} => {$(
         #[allow(unused_qualifications)]
@@ -201,58 +201,11 @@ macro_rules! impl_settings {
     )*};
 }
 
-/// Macro for simple initialization of DbSettings structures by DB url.
-///
-/// # Example:
-/// ```ignore
-/// impl_db_settings! { "https://example.url" }
-/// ```
-#[macro_export]
-macro_rules! impl_db_settings {
-    { $default_url:expr } => {
-    #[serde_with::serde_as]
-    #[derive(Debug, Deserialize, PartialEq, Eq)]
-    pub struct DbSettings {
-        #[serde(default = "DbSettings::default_url")]
-        pub url: String,
-        #[serde(default = "DbSettings::default_pool_size")]
-        pub pool_size: u32,
-        #[serde(rename = "connect_timeout_ms", default = "DbSettings::default_connect_timeout")]
-        #[serde_as(as = "serde_with::DurationMilliSeconds")]
-        pub connect_timeout: std::time::Duration,
-    }
-
-    impl Default for DbSettings {
-        fn default() -> Self {
-            Self {
-                url: Self::default_url(),
-                pool_size: Self::default_pool_size(),
-                connect_timeout: Self::default_connect_timeout(),
-            }
-        }
-    }
-
-    impl DbSettings {
-        fn default_url() -> String {
-            String::from($default_url)
-        }
-
-        fn default_pool_size() -> u32 {
-            10
-        }
-
-        fn default_connect_timeout() -> std::time::Duration {
-            std::time::Duration::from_secs(60)
-        }
-    }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
 
-    use crate::logger::LoggerSettings;
+    use crate::{db::DbSettings, logger::LoggerSettings};
     use lazy_static::lazy_static;
     use serde::Deserialize;
 
@@ -271,7 +224,6 @@ mod tests {
     }
 
     static DB_URL: &str = "https://test_url.com";
-    impl_db_settings! { DB_URL }
 
     impl_settings! {
         #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -286,7 +238,7 @@ mod tests {
             pub logger: LoggerSettings => LoggerSettings::default(),
 
             #[serde(default = "TestSettings::default_db_settings")]
-            pub db_settings: DbSettings => DbSettings::default()
+            pub db_settings: DbSettings => DbSettings::from_url(DB_URL)
         }
     }
 
@@ -299,7 +251,7 @@ mod tests {
             field_1: default_field_1(),
             field_2: default_field_2(),
             logger: LoggerSettings::default(),
-            db_settings: DbSettings::default(),
+            db_settings: DbSettings::from_url(DB_URL),
         };
 
         assert_eq!(expected_settings, default_settings);
@@ -322,7 +274,7 @@ mod tests {
                 field_1: 2,
                 field_2: "Hello from environment".into(),
                 logger: LoggerSettings::default(),
-                db_settings: DbSettings::default(),
+                db_settings: DbSettings::from_url(DB_URL),
             }
         };
 
@@ -343,7 +295,7 @@ mod tests {
                 field_1: 2,
                 field_2: default_field_2(),
                 logger: LoggerSettings::default(),
-                db_settings: DbSettings::default(),
+                db_settings: DbSettings::from_url(DB_URL),
             }
         };
 
