@@ -11,6 +11,7 @@ use sqlx::{postgres::PgPoolOptions, Error, PgPool};
 #[serde_as]
 #[derive(Debug, Deserialize, Clone)]
 pub struct DbSettings {
+    #[serde(default = "DbSettings::default_url")]
     pub url: String,
     #[serde(default = "DbSettings::default_pool_size")]
     pub pool_size: u32,
@@ -20,12 +21,39 @@ pub struct DbSettings {
 }
 
 impl DbSettings {
+    pub fn from_url(url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            ..Default::default()
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn default_url() -> String {
+        "postgres://postgres:postgres@db:5432/postgres".to_owned()
+    }
+
+    #[cfg(not(debug_assertions))]
+    fn default_url() -> String {
+        panic!("Database URL must be specified in production")
+    }
+
     fn default_pool_size() -> u32 {
         10
     }
 
     fn default_connect_timeout() -> Duration {
         Duration::from_secs(60)
+    }
+}
+
+impl Default for DbSettings {
+    fn default() -> Self {
+        Self {
+            url: Self::default_url(),
+            pool_size: Self::default_pool_size(),
+            connect_timeout: Self::default_connect_timeout(),
+        }
     }
 }
 
@@ -40,6 +68,7 @@ pub trait Access {
     async fn done(self) -> Result<(), Error>;
 }
 
+#[derive(Debug, Clone)]
 pub struct DbRepo {
     pool: PgPool,
 }
@@ -67,6 +96,14 @@ impl Repo for DbRepo {
 
     async fn access(&self) -> Result<Self::Access, sqlx::Error> {
         self.pool.begin().await.map(DbAccess)
+    }
+}
+
+impl Deref for DbRepo {
+    type Target = PgPool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pool
     }
 }
 
