@@ -251,7 +251,7 @@ mod tests {
             field_1: default_field_1(),
             field_2: default_field_2(),
             logger: LoggerSettings::default(),
-            db_settings: DbSettings::default(),
+            db_settings: DbSettings::from_url(DB_URL),
         };
 
         assert_eq!(expected_settings, default_settings);
@@ -274,7 +274,7 @@ mod tests {
                 field_1: 2,
                 field_2: "Hello from environment".into(),
                 logger: LoggerSettings::default(),
-                db_settings: DbSettings::default(),
+                db_settings: DbSettings::from_url(DB_URL),
             }
         };
 
@@ -295,7 +295,7 @@ mod tests {
                 field_1: 2,
                 field_2: default_field_2(),
                 logger: LoggerSettings::default(),
-                db_settings: DbSettings::default(),
+                db_settings: DbSettings::from_url(DB_URL),
             }
         };
 
