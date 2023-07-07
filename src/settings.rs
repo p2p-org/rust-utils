@@ -188,6 +188,11 @@ macro_rules! impl_settings {
                     .map_err(Into::into)
             }
 
+            #[cfg(feature = "vault")]
+            pub async fn try_read_vault_config(env_prefix: &str) -> $crate::anyhow::Result<Self> {
+                $crate::vault::VaultClient::default().init_config_from_secret(env_prefix).await
+            }
+
             #[allow(dead_code)]
             pub fn try_new() -> Result<Self, $crate::settings::SettingsError> {
                 Self::try_read_config(APP_ENV_PREFIX)

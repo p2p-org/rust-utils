@@ -72,6 +72,7 @@ tracing-subscriber = { version = "0.3", features = [
 claim = "0.5.0"
 
 [features]
+vault = ["reqwest", "anyhow"]
 wrappers = ["bs58", "jsonrpsee", "thiserror", "serde_with"]
 solana = ["solana-sdk"]
 crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
