@@ -16,12 +16,12 @@ pub mod rabbitmq;
 pub mod server;
 #[cfg(feature = "settings")]
 pub mod settings;
-#[cfg(feature = "vault")]
-pub mod vault;
 #[cfg(feature = "telemetry")]
 pub mod telemetry;
 #[cfg(feature = "tokens")]
 pub mod tokens;
+#[cfg(feature = "vault")]
+pub mod vault;
 #[cfg(feature = "wrappers")]
 pub mod wrappers;
 

@@ -98,6 +98,16 @@ impl VaultClient {
         Ok(secret)
     }
 
+    pub async fn k8s_login_and_read_secret_from_env(&self) -> Result<Option<HashMap<String, String>>> {
+        if let (Ok(role), Ok(secret_mount_path)) = (env::var("VAULT_ROLE"), env::var("VAULT_SECRET_MOUNT_PATH")) {
+            self.k8s_login_and_read_secret(&role, &secret_mount_path)
+                .await
+                .map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn setup_env<'a, 'b: 'a>(&self, data: impl IntoIterator<Item = (&'a String, &'a String)> + 'b) {
         for (key, value) in data {
             if !key.is_empty() {
@@ -113,14 +123,19 @@ impl VaultClient {
     }
 
     pub async fn init_env_from_secret(&self) -> Result<()> {
-        if let (Ok(role), Ok(secret_mount_path)) = (env::var("VAULT_ROLE"), env::var("VAULT_SECRET_MOUNT_PATH")) {
-            self.setup_env_from_secret(&role, &secret_mount_path).await?;
+        if let Some(secret) = self.k8s_login_and_read_secret_from_env().await? {
+            self.setup_env(&secret);
         }
         Ok(())
     }
 
     #[cfg(feature = "settings")]
-    pub async fn read_config_from_secret<'de, T: serde::Deserialize<'de>>(&self, prefix: &str, role: &str, secret_mount_path: &str) -> Result<T> {
+    pub async fn read_config_from_secret<'de, T: serde::Deserialize<'de>>(
+        &self,
+        prefix: &str,
+        role: &str,
+        secret_mount_path: &str,
+    ) -> Result<T> {
         let settings = self.k8s_login_and_read_secret(role, secret_mount_path).await?;
         Ok(config::Config::builder()
             .add_source(config::Environment::with_prefix(prefix).source(Some(settings)))
@@ -130,12 +145,10 @@ impl VaultClient {
 
     #[cfg(feature = "settings")]
     pub async fn init_config_from_secret<'de, T: serde::Deserialize<'de>>(&self, prefix: &str) -> Result<T> {
-        let source = config::Environment::with_prefix(prefix);
-        let source = if let (Ok(role), Ok(secret_mount_path)) = (env::var("VAULT_ROLE"), env::var("VAULT_SECRET_MOUNT_PATH")) {
-            source.source(Some(self.k8s_login_and_read_secret(role, secret_mount_path).await?))
-        } else {
-            source
-        };
-        Ok(config::Config::builder().add_source(source).build()?.try_deserialize()?)
+        let settings = self.k8s_login_and_read_secret_from_env().await?;
+        Ok(config::Config::builder()
+            .add_source(config::Environment::with_prefix(prefix).source(settings))
+            .build()?
+            .try_deserialize()?)
     }
 }
