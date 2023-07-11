@@ -194,7 +194,10 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
         let connection = Connection::connect(&url, options)
             .await
             .context("Failed to connect to rabbitmq")?;
+        #[cfg(not(feature = "telemetry"))]
         log::trace!("Connected to rabbitmq");
+        #[cfg(feature = "telemetry")]
+        tracing::trace!("Connected to rabbitmq");
 
         let topology = connection
             .restore(topology_definition)
@@ -232,6 +235,7 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
 
             #[cfg(feature = "telemetry")]
             let ack = {
+                tracing::info!(parent: &span, "received message");
                 // actual message handler should return non-permanent error if it wants to nack message
                 match processor
                     .process_message(&delivery, &channel)
