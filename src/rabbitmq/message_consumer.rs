@@ -80,6 +80,7 @@ where
     T::Message: DeserializeOwned + Send + Sync + 'static,
 {
     async fn process_message(&self, delivery: &Delivery, _channel: &Channel) -> anyhow::Result<AutoAck> {
+        tracing::debug!(delivery_tag = %delivery.delivery_tag, "Received message");
         if let Some(routing_key) = Self::ROUTING_KEY {
             if delivery.routing_key.as_str() != routing_key {
                 tagged_warn!(tag = delivery.delivery_tag; "Unsupported routing key {}", delivery.routing_key);
@@ -91,10 +92,15 @@ where
             tagged_warn!(tag = delivery.delivery_tag; "Failed to deserialize message: {error:?}");
             error
         })?;
+
+        tracing::debug!("Message parsed");
+
         self.handle_message(message).await.map_err(|error| {
             tagged_warn!(tag = delivery.delivery_tag; "Failed to handle message: {error:?}");
             error
         })?;
+        tracing::debug!("messaged handled");
+
         Ok(true)
     }
 }
@@ -252,6 +258,8 @@ impl<MsgProcessor: MessageProcessor + Clone + Send + Sync + 'static> RabbitMessa
                     },
                 }
             };
+
+            tracing::debug!(parent: &span, ack = %ack, "lets ack/nack");
 
             if ack {
                 delivery
