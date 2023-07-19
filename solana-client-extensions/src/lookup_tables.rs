@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use solana_address_lookup_table_program::state::AddressLookupTable;
 use solana_client::{
@@ -92,6 +94,25 @@ impl LoadFromLookupTable for RpcClient {
             .load_address_lookup_table_accounts(message_address_table_lookups)
             .await?;
         Ok(load_addresses(message_address_table_lookups, &accounts))
+    }
+}
+
+#[async_trait]
+impl LoadFromLookupTable for Arc<RpcClient> {
+    async fn load_address_lookup_table_accounts(
+        &self,
+        message_address_table_lookups: &[v0::MessageAddressTableLookup],
+    ) -> Result<Vec<AddressLookupTableAccount>, ClientError> {
+        self.load_address_lookup_table_accounts(message_address_table_lookups)
+            .await
+    }
+
+    async fn load_address_lookup_table_addresses(
+        &self,
+        message_address_table_lookups: &[v0::MessageAddressTableLookup],
+    ) -> Result<v0::LoadedAddresses, ClientError> {
+        self.load_address_lookup_table_addresses(message_address_table_lookups)
+            .await
     }
 }
 
