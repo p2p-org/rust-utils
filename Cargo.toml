@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust-utils"]
+members = ["rust-utils", "solana-client-extensions"]
 
 [profile.release]
 lto = true
@@ -40,8 +40,10 @@ sentry-tracing = { version = "0.27" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_with = { version = "3" }
+solana-address-lookup-table-program = { version = "1.14" }
 solana-client = { version = "1.14" }
 solana-sdk = { version = "1.14" }
+solana-transaction-status = { version = "1.14" }
 sqlx = { version = "0.6", features = ["runtime-tokio-native-tls"] }
 stream-cancel = { version = "0.8" }
 strum = { version = "0.21" }
