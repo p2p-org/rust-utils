@@ -103,7 +103,8 @@ impl LoadFromLookupTable for Arc<RpcClient> {
         &self,
         message_address_table_lookups: &[v0::MessageAddressTableLookup],
     ) -> Result<Vec<AddressLookupTableAccount>, ClientError> {
-        self.load_address_lookup_table_accounts(message_address_table_lookups)
+        self.as_ref()
+            .load_address_lookup_table_accounts(message_address_table_lookups)
             .await
     }
 
@@ -111,7 +112,8 @@ impl LoadFromLookupTable for Arc<RpcClient> {
         &self,
         message_address_table_lookups: &[v0::MessageAddressTableLookup],
     ) -> Result<v0::LoadedAddresses, ClientError> {
-        self.load_address_lookup_table_addresses(message_address_table_lookups)
+        self.as_ref()
+            .load_address_lookup_table_addresses(message_address_table_lookups)
             .await
     }
 }
@@ -132,7 +134,7 @@ mod tests {
     #[ignore = "unstable because of rpc node(need to mock it)"]
     #[tokio::test]
     async fn load_address_lookup_table_accounts_check() {
-        let client = RpcClient::new(RPC_URL.to_string());
+        let client = Arc::new(RpcClient::new(RPC_URL.to_string()));
 
         let tx = client
             .get_transaction_with_config(
