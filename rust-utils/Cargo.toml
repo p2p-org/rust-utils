@@ -1,0 +1,125 @@
+[package]
+edition = "2021"
+name = "rust-utils"
+version = "1.1.0"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+anyhow = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+axum-tracing-opentelemetry = { workspace = true, optional = true }
+backoff = { workspace = true, features = ["futures", "tokio"], optional = true }
+borsh = { workspace = true, optional = true }
+bs58 = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+config = { workspace = true, features = ["toml"], optional = true }
+ed25519-dalek = { workspace = true, optional = true }
+ethereum-types = { workspace = true, optional = true }
+flexi_logger = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+gcloud-env = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+jsonrpsee = { workspace = true, features = ["full"], optional = true }
+lapin = { workspace = true, optional = true }
+lazy_static = { workspace = true, optional = true }
+log = { workspace = true, features = [
+    "kv_unstable",
+    "kv_unstable_serde",
+], optional = true }
+opentelemetry = { workspace = true, features = ["rt-tokio"], optional = true }
+opentelemetry-jaeger = { workspace = true, features = [
+    "rt-tokio",
+    "reqwest_collector_client",
+], optional = true }
+opentelemetry-semantic-conventions = { workspace = true, optional = true }
+paste = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+reqwest = { workspace = true, features = ["blocking", "json"], optional = true }
+rustc-hex = { workspace = true, optional = true }
+scheduled-thread-pool = { workspace = true, optional = true }
+sentry = { workspace = true, optional = true }
+sentry-log = { workspace = true, optional = true }
+sentry-tracing = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = "1.0"
+serde_with = { workspace = true, optional = true }
+solana-client = { workspace = true, optional = true }
+solana-sdk = { workspace = true, optional = true }
+sqlx = { workspace = true, features = ["runtime-tokio-native-tls"], optional = true }
+stream-cancel = { workspace = true, optional = true }
+strum = { workspace = true, optional = true }
+strum_macros = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["full"], optional = true }
+tokio-executor-trait = { workspace = true, optional = true }
+tokio-reactor-trait = { workspace = true, optional = true }
+tower = { workspace = true, features = ["tokio"], optional = true }
+tower-http = { workspace = true, features = ["cors", "trace"], optional = true }
+tower-opentelemetry = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+tracing-bunyan-formatter = { workspace = true, optional = true }
+tracing-log = { workspace = true, optional = true }
+tracing-opentelemetry = { workspace = true, optional = true }
+tracing-stackdriver = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = [
+    "registry",
+    "env-filter",
+], optional = true }
+
+[dev-dependencies]
+claim = "0.5.0"
+
+[features]
+client = ["jsonrpsee", "tower", "tower-opentelemetry"]
+crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
+db = ["sqlx/postgres", "async-trait", "serde_with"]
+default = []
+error = ["strum", "strum_macros", "thiserror"]
+ethereum = ["rustc-hex", "serde_with", "ethereum-types", "sqlx", "thiserror"]
+logger = ["sentry", "sentry-log", "log", "flexi_logger", "anyhow", "chrono"]
+macros = []
+rabbitmq = [
+    "anyhow",
+    "async-trait",
+    "backoff",
+    "futures",
+    "lapin",
+    "log",
+    "tokio",
+    "tokio-executor-trait",
+    "tokio-reactor-trait",
+    "stream-cancel",
+]
+rpc = ["gcloud-env", "lazy_static", "serde_with"]
+server = [
+    "jsonrpsee",
+    "tokio",
+    "tracing",
+    "tower-http",
+    "tower",
+    "axum-tracing-opentelemetry",
+]
+settings = ["config", "log", "serde_with", "paste", "thiserror"]
+solana = ["solana-sdk"]
+solana-backoff = ["backoff", "tracing", "solana-client", "futures", "tokio"]
+telemetry = [
+    "tracing",
+    "opentelemetry",
+    "opentelemetry-jaeger",
+    "tracing-opentelemetry",
+    "tracing-subscriber",
+    "tracing-bunyan-formatter",
+    "tracing-log",
+    "tracing-stackdriver",
+    "sentry-tracing",
+    "sentry",
+    "jsonrpsee",
+    "anyhow",
+    "async-trait",
+    "http",
+    "opentelemetry-semantic-conventions",
+]
+tokens = ["error", "borsh", "solana-client", "solana-sdk", "reqwest", "anyhow", "log"]
+wrappers = ["bs58", "jsonrpsee", "thiserror", "serde_with"]
