@@ -108,6 +108,7 @@ mod tests {
 
     const RPC_URL: &str = "https://api.mainnet-beta.solana.com";
 
+    #[ignore = "unstable because of rpc node(need to mock it)"]
     #[tokio::test]
     async fn load_address_lookup_table_accounts_check() {
         let client = RpcClient::new(RPC_URL.to_string());
