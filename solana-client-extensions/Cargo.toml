@@ -1,0 +1,14 @@
+[package]
+edition = "2021"
+name = "solana-client-extensions"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { workspace = true }
+solana-address-lookup-table-program = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+solana-transaction-status = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
