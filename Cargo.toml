@@ -1,5 +1,10 @@
 [workspace]
-members = ["rust-utils", "solana-client-extensions", "tokens-filter"]
+members = [
+  "rust-utils",
+  "solana-client-extensions",
+  "tokens-filter",
+  "coinmarketcap-client",
+]
 
 [profile.release]
 lto = true
