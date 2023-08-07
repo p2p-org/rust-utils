@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust-utils", "solana-client-extensions"]
+members = ["rust-utils", "solana-client-extensions", "tokens-filter"]
 
 [profile.release]
 lto = true
