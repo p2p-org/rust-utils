@@ -1,3 +1,4 @@
+pub mod coingecko;
 pub mod coinmarketcap;
 pub mod jupiter;
 pub mod solana;

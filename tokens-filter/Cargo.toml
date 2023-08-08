@@ -9,6 +9,7 @@ version = "0.1.0"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 cached = { workspace = true }
+coingecko-client = { path = "../coingecko-client" }
 coinmarketcap-client = { path = "../coinmarketcap-client" }
 normdecimal = { workspace = true }
 reqwest = { workspace = true }
@@ -17,6 +18,7 @@ serde_json = { workspace = true }
 solana-client = { workspace = true }
 solana-sdk = { workspace = true }
 spl-token = { workspace = true }
+token-address = { path = "../token-address" }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 
