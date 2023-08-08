@@ -8,11 +8,12 @@ version = "0.1.0"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+cached = { workspace = true }
 coinmarketcap-client = { path = "../coinmarketcap-client" }
-# reqwest = { workspace = true }
-# serde = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
-# serde_with = { workspace = true }
 solana-sdk = { workspace = true }
+spl-token = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }

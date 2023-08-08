@@ -1,4 +1,5 @@
 pub mod coinmarketcap;
+pub mod jupiter;
 
 #[async_trait::async_trait]
 pub trait CheckToken {

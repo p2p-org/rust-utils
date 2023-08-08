@@ -16,6 +16,7 @@ axum-tracing-opentelemetry = { version = "0.5.0" }
 backoff = { version = "0.4.0", features = ["futures", "tokio"] }
 borsh = { version = "0.9.3" }
 bs58 = { version = "0.4.0" }
+cached = { version = "0.44.0", default-features = false, features = ["async"] }
 chrono = { version = "0.4" }
 config = { version = "0.13", features = ["toml"] }
 ed25519-dalek = { version = "1.0.1" }
@@ -49,6 +50,7 @@ solana-address-lookup-table-program = { version = "1.14" }
 solana-client = { version = "1.14" }
 solana-sdk = { version = "1.14" }
 solana-transaction-status = { version = "1.14" }
+spl-token = { version = "3.2", features = ["no-entrypoint"] }
 sqlx = { version = "0.6", features = ["runtime-tokio-native-tls"] }
 stream-cancel = { version = "0.8" }
 strum = { version = "0.21" }
