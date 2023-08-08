@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, collections::HashMap};
+use std::{cell::OnceCell, collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use cached::{Cached, TimedCache};
@@ -63,7 +63,6 @@ pub struct JupiterChecker {
 impl JupiterChecker {
     async fn get_from_cache_or_update(&self, key: String) -> anyhow::Result<usize> {
         let mut guard = self.cache.lock().await;
-        println!("key {key}");
 
         if let Some(routes_count) = guard.0.cache_get(&key) {
             return Ok(*routes_count);
@@ -99,6 +98,15 @@ impl CheckToken for JupiterChecker {
     }
 }
 
+#[async_trait]
+impl CheckToken for Arc<JupiterChecker> {
+    type Token = Pubkey;
+
+    async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool> {
+        Ok(self.as_ref().get_from_cache_or_update(token.to_string()).await? > 0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use solana_sdk::pubkey;
@@ -108,7 +116,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "needs to mock jupiter json"]
     async fn check() {
-        let client = JupiterChecker::new(DEFAULT_URL.to_owned(), 2).await.unwrap();
+        let client = Arc::new(JupiterChecker::new(DEFAULT_URL.to_owned(), 2).await.unwrap());
 
         let good = client
             .check_token(&pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")) // USDC

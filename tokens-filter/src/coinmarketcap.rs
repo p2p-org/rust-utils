@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use coinmarketcap_client::CoinmarketcapClient;
 use solana_sdk::pubkey::Pubkey;
@@ -32,6 +34,16 @@ impl CheckToken for CoinmarketcapClient {
     }
 }
 
+#[async_trait]
+impl CheckToken for Arc<CoinmarketcapClient> {
+    type Token = Pubkey;
+
+    #[tracing::instrument(skip(self), err)]
+    async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool> {
+        self.as_ref().check_token(token).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use http_client::settings::HttpClientSettings;
@@ -42,10 +54,10 @@ mod tests {
     #[tokio::test]
     #[ignore = "setup api key"]
     async fn check() {
-        let client = CoinmarketcapClient::new(&HttpClientSettings {
+        let client = Arc::new(CoinmarketcapClient::new(&HttpClientSettings {
             api_key: Some("...".into()),
             ..Default::default()
-        });
+        }));
 
         let good = client
             .check_token(&pubkey!("7gjNiPun3AzEazTZoFEjZgcBMeuaXdpjHq2raZTmTrfs")) // CRV DAO
