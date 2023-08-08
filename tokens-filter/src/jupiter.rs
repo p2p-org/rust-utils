@@ -93,6 +93,7 @@ impl JupiterChecker {
 impl CheckToken for JupiterChecker {
     type Token = Pubkey;
 
+    #[tracing::instrument(skip(self), err)]
     async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool> {
         Ok(self.get_from_cache_or_update(token.to_string()).await? > 0)
     }
@@ -102,6 +103,7 @@ impl CheckToken for JupiterChecker {
 impl CheckToken for Arc<JupiterChecker> {
     type Token = Pubkey;
 
+    #[tracing::instrument(skip(self), err)]
     async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool> {
         Ok(self.as_ref().get_from_cache_or_update(token.to_string()).await? > 0)
     }
