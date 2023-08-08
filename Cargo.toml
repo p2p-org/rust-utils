@@ -4,6 +4,7 @@ members = [
   "solana-client-extensions",
   "tokens-filter",
   "coinmarketcap-client",
+  "token-address",
 ]
 
 [profile.release]
@@ -24,6 +25,7 @@ ethereum-types = { version = "0.13" }
 flexi_logger = { version = "0.22" }
 futures = { version = "0.3.21" }
 gcloud-env = { version = "0.1.0" }
+hex-literal = "0.4.1"
 http = { version = "0.2" }
 jsonrpsee = { version = "0.18.2", features = ["full"] }
 lapin = { version = "2.1" }
@@ -37,6 +39,7 @@ opentelemetry-jaeger = { version = "0.17", features = [
 ] }
 opentelemetry-semantic-conventions = { version = "0.10.0" }
 paste = { version = "1" }
+primitive-types = "0.12.1"
 rand = { version = "0.7" }
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 rustc-hex = { version = "2.1" }
