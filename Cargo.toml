@@ -4,6 +4,7 @@ members = [
   "solana-client-extensions",
   "tokens-filter",
   "coinmarketcap-client",
+  "coingecko-client",
   "http-client",
   "token-address",
 ]
@@ -27,7 +28,7 @@ flexi_logger = { version = "0.22" }
 futures = { version = "0.3.21" }
 gcloud-env = { version = "0.1.0" }
 hex-literal = "0.4.1"
-http = { version = "0.2" }
+http = { version = "0.2.9" }
 jsonrpsee = { version = "0.18.2", features = ["full"] }
 lapin = { version = "2.1" }
 lazy_static = { version = "1.4.0" }
