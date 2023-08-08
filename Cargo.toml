@@ -29,6 +29,7 @@ jsonrpsee = { version = "0.18.2", features = ["full"] }
 lapin = { version = "2.1" }
 lazy_static = { version = "1.4.0" }
 log = { version = "0.4", features = ["kv_unstable", "kv_unstable_serde"] }
+normdecimal = { version = "0.1.6", features = ["borsh", "sqlx", "postgres"] }
 opentelemetry = { version = "0.18", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.17", features = [
   "rt-tokio",

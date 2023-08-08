@@ -10,9 +10,11 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 cached = { workspace = true }
 coinmarketcap-client = { path = "../coinmarketcap-client" }
+normdecimal = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+solana-client = { workspace = true }
 solana-sdk = { workspace = true }
 spl-token = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
