@@ -3,6 +3,7 @@ pub mod settings;
 use anyhow::Result;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 
 use crate::settings::HttpClientSettings;
 
@@ -20,6 +21,25 @@ pub struct CoinmarketcapClient {
     base_url: String,
 }
 
+// core functionality
+impl CoinmarketcapClient {
+    fn build_cryptocurrency_info_url(&self, address: String) -> String {
+        format!("{url}/{CRYPTOCURRENCY_INFO}?address={address}", url = self.base_url)
+    }
+
+    async fn request<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
+        let response = self
+            .client
+            .get(url)
+            .header("X-CMC_PRO_API_KEY", &self.api_key)
+            .send()
+            .await?;
+
+        Ok(response.json().await?)
+    }
+}
+
+// Pub api
 impl CoinmarketcapClient {
     pub fn new(settings: &HttpClientSettings) -> Self {
         let client: Client = settings.into();
@@ -39,18 +59,7 @@ impl CoinmarketcapClient {
         }
     }
 
-    pub fn build_cryptocurrency_info_url(&self, address: String) -> String {
-        format!("{url}/{CRYPTOCURRENCY_INFO}?address={address}", url = self.base_url)
-    }
-
-    pub async fn request<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
-        let response = self
-            .client
-            .get(url)
-            .header("X-CMC_PRO_API_KEY", &self.api_key)
-            .send()
-            .await?;
-
-        Ok(response.json().await?)
+    pub async fn cryptocurrency_info(&self, address: String) -> Result<Value> {
+        self.request(self.build_cryptocurrency_info_url(address).as_str()).await
     }
 }

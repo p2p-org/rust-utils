@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use coinmarketcap_client::CoinmarketcapClient;
-use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
 
 use crate::CheckToken;
@@ -11,8 +10,7 @@ impl CheckToken for CoinmarketcapClient {
 
     #[tracing::instrument(skip(self), err)]
     async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool> {
-        let url = self.build_cryptocurrency_info_url(token.to_string());
-        let response = self.request::<Value>(url.as_str()).await?;
+        let response = self.cryptocurrency_info(token.to_string()).await?;
 
         let Some(data) = response.get("data").and_then(|x| x.as_object()) else {
             tracing::debug!("No data in response");
