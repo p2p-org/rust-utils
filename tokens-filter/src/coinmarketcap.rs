@@ -10,7 +10,7 @@ impl CheckToken for CoinmarketcapClient {
     type Token = Pubkey;
 
     #[tracing::instrument(skip(self), err)]
-    async fn check(&self, token: &Self::Token) -> anyhow::Result<bool> {
+    async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool> {
         let url = self.build_cryptocurrency_info_url(token.to_string());
         let response = self.request::<Value>(url.as_str()).await?;
 
@@ -50,13 +50,13 @@ mod tests {
         });
 
         let good = client
-            .check(&pubkey!("7gjNiPun3AzEazTZoFEjZgcBMeuaXdpjHq2raZTmTrfs")) // CRV DAO
+            .check_token(&pubkey!("7gjNiPun3AzEazTZoFEjZgcBMeuaXdpjHq2raZTmTrfs")) // CRV DAO
             .await
             .unwrap();
 
         assert!(good);
 
-        let bad = client.check(&Pubkey::new_unique()).await.unwrap();
+        let bad = client.check_token(&Pubkey::new_unique()).await.unwrap();
 
         assert!(!bad);
     }
