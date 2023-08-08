@@ -34,7 +34,7 @@ impl CheckToken for CoinmarketcapClient {
 
 #[cfg(test)]
 mod tests {
-    use coinmarketcap_client::settings::HttpClientSettings;
+    use http_client::settings::HttpClientSettings;
     use solana_sdk::pubkey;
 
     use super::*;

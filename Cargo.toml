@@ -4,6 +4,7 @@ members = [
   "solana-client-extensions",
   "tokens-filter",
   "coinmarketcap-client",
+  "http-client",
   "token-address",
 ]
 

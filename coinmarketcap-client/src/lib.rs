@@ -1,11 +1,8 @@
-pub mod settings;
-
 use anyhow::Result;
+use http_client::settings::HttpClientSettings;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-
-use crate::settings::HttpClientSettings;
 
 static URL: &str = "https://pro-api.coinmarketcap.com";
 
