@@ -13,6 +13,7 @@ coingecko-client = { path = "../coingecko-client" }
 coinmarketcap-client = { path = "../coinmarketcap-client" }
 normdecimal = { workspace = true }
 reqwest = { workspace = true }
+rust-utils = { path = "../rust-utils", features = ["tokens"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 solana-client = { workspace = true }

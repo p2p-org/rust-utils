@@ -1,5 +1,6 @@
 pub mod coingecko;
 pub mod coinmarketcap;
+pub mod json;
 pub mod jupiter;
 pub mod solana;
 
