@@ -2,7 +2,6 @@ use anyhow::Context;
 use http::{HeaderMap, HeaderName, StatusCode};
 use http_client::settings::HttpClientSettings;
 use serde::Deserialize;
-use serde_json::Value;
 use std::collections::HashMap;
 use token_address::StoredTokenAddress;
 use types::{CoingeckoInfo, CoingeckoInfoWithAddress};
@@ -51,7 +50,10 @@ impl CoingeckoClient {
         })
     }
 
-    pub async fn get_metadata_by_address(&self, address: &StoredTokenAddress) -> anyhow::Result<Option<Value>> {
+    pub async fn get_metadata_by_address(
+        &self,
+        address: &StoredTokenAddress,
+    ) -> anyhow::Result<Option<CoingeckoInfoWithAddress>> {
         let response = self
             .client
             .get(format!(
@@ -68,7 +70,7 @@ impl CoingeckoClient {
 
         let response = response.error_for_status()?;
 
-        Ok(Some(response.json::<Value>().await?.into()))
+        Ok(Some(response.json::<CoingeckoCoinsResponse>().await?.into()))
     }
 
     pub async fn get_metadata_by_slug(&self, slug: &str) -> anyhow::Result<Option<CoingeckoInfoWithAddress>> {
