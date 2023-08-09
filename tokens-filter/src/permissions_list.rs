@@ -22,6 +22,14 @@ impl PermissionsList {
     }
 }
 
+impl Default for PermissionsList {
+    fn default() -> Self {
+        Self {
+            tokens: Default::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

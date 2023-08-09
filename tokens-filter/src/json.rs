@@ -17,7 +17,7 @@ impl CheckToken for JsonChecker {
         match get_token_symbol_by_mint_from_json(&token.to_string()).await {
             Ok(_) => Ok(true),
             Err(e) => {
-                if e.to_string().contains("unable to parse response from token-list") {
+                if e.to_string().contains("token not found") {
                     Ok(false)
                 } else {
                     Err(e)
@@ -39,7 +39,6 @@ impl CheckToken for Arc<JsonChecker> {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::anyhow;
     use solana_sdk::pubkey;
 
     use super::*;
@@ -54,7 +53,7 @@ mod tests {
             .await
             .unwrap();
         assert!(good);
-        let not_found = client.check_token(&Pubkey::new_unique()).await.err().unwrap();
-        assert_eq!(not_found.to_string(), anyhow!("token not found").to_string());
+        let not_found = client.check_token(&Pubkey::new_unique()).await.unwrap();
+        assert!(!not_found);
     }
 }
