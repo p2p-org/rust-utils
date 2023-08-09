@@ -95,6 +95,7 @@ pub trait CheckToken {
     async fn check_token(&self, token: &Self::Token) -> anyhow::Result<bool>;
 }
 
+#[derive(Default)]
 pub struct TokensFilter {
     permissions_list: PermissionsList,
     checkers: Vec<Checker>,
@@ -155,15 +156,6 @@ impl TokensFilter {
     pub fn with_permissions_list(mut self, permissions_list: PermissionsList) -> Self {
         self.permissions_list = permissions_list;
         self
-    }
-}
-
-impl Default for TokensFilter {
-    fn default() -> Self {
-        Self {
-            permissions_list: Default::default(),
-            checkers: Default::default(),
-        }
     }
 }
 
@@ -241,8 +233,7 @@ mod tests {
             ..Default::default()
         };
 
-        let (telemetry, subscriber) =
-            Telemetry::init(make_resource("TEST", env!("CARGO_PKG_VERSION")), tracing).unwrap();
+        let (_, subscriber) = Telemetry::init(make_resource("TEST", env!("CARGO_PKG_VERSION")), tracing).unwrap();
         Telemetry::init_subscriber(subscriber).unwrap();
 
         let filter = TokensFilter::new_all(

@@ -4,6 +4,7 @@ use solana_sdk::pubkey::Pubkey;
 
 const NOT_DENIED: bool = true;
 
+#[derive(Default)]
 pub struct PermissionsList {
     tokens: HashMap<Pubkey, bool>,
 }
@@ -19,14 +20,6 @@ impl PermissionsList {
 
     pub fn is_blacklisted(&self, token: &Pubkey) -> bool {
         !self.tokens.get(token).copied().unwrap_or(NOT_DENIED)
-    }
-}
-
-impl Default for PermissionsList {
-    fn default() -> Self {
-        Self {
-            tokens: Default::default(),
-        }
     }
 }
 

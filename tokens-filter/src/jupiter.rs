@@ -1,4 +1,7 @@
-use std::{cell::OnceCell, collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+};
 
 use async_trait::async_trait;
 use cached::{Cached, TimedCache};
@@ -9,7 +12,7 @@ use tokio::sync::Mutex;
 use crate::CheckToken;
 
 pub static DEFAULT_URL: &str = "https://cache.jup.ag/indexed-route-maps-v3";
-pub const SOL: OnceCell<String> = OnceCell::new();
+pub static SOL: OnceLock<String> = OnceLock::new();
 
 pub struct RoutesCache(TimedCache<String, usize>);
 

@@ -312,7 +312,7 @@ mod test {
         assert_eq!(deserialized, TokenAddress::Spl(input.into()));
 
         let input = Pubkey::new_unique();
-        let serialized = format!("\"{pubkey}\"", pubkey = input.to_string());
+        let serialized = format!("\"{pubkey}\"", pubkey = input);
         let deserialized: TokenAddress = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, TokenAddress::Spl(input));
     }
