@@ -38,15 +38,15 @@ impl CoinmarketcapClient {
 
 // Pub api
 impl CoinmarketcapClient {
-    pub fn new(settings: &HttpClientSettings) -> Self {
-        let client: Client = settings.into();
+    pub fn new(settings: HttpClientSettings) -> Self {
+        let client = (&settings).into();
         let (base_url, api_key) = if settings.is_sandbox {
             (
                 SANDBOX_URL.into(),
-                settings.api_key.clone().unwrap_or_else(|| SANDBOX_API_KEY.into()),
+                settings.api_key.unwrap_or_else(|| SANDBOX_API_KEY.into()),
             )
         } else {
-            (URL.into(), settings.api_key.clone().expect("Missing CMC API key"))
+            (URL.into(), settings.api_key.expect("Missing CMC API key"))
         };
 
         Self {
