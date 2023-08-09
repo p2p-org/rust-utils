@@ -54,7 +54,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "setup api key"]
     async fn check() {
-        let client = Arc::new(CoinmarketcapClient::new(&HttpClientSettings {
+        let client = Arc::new(CoinmarketcapClient::new(HttpClientSettings {
             api_key: Some("...".into()),
             ..Default::default()
         }));
