@@ -140,7 +140,7 @@ impl CoingeckoClient {
         &self,
         coin_id: &str,
         date_range: &Range<NaiveDate>,
-        currency: &str,
+        currency: &impl std::fmt::Display,
     ) -> anyhow::Result<Vec<(i64, NormDecimal)>> {
         let url = format!(
             "{base_url}/coins/{coin_id}/market_chart/range?vs_currency={currency}&from={from}&to={to}",

@@ -36,7 +36,12 @@ impl CoinmarketcapClient {
         format!("{url}/{CRYPTOCURRENCY_INFO}?address={address}", url = self.base_url)
     }
 
-    fn build_historical_prices_url(&self, coin_ids: &[&str], date_range: Range<NaiveDate>, currency: &str) -> String {
+    fn build_historical_prices_url(
+        &self,
+        coin_ids: &[&str],
+        date_range: Range<NaiveDate>,
+        currency: &impl std::fmt::Display,
+    ) -> String {
         format!(
             "{}/v2/cryptocurrency/quotes/historical?interval=daily&aux=price&symbol={}&time_start={}&time_end={}&convert={}",
             self.base_url,
@@ -87,11 +92,10 @@ impl CoinmarketcapClient {
         &self,
         coin_ids: &[&str],
         date_range: Range<NaiveDate>,
-        currency: &str,
+        currency: &impl std::fmt::Display,
     ) -> Result<PricesResponse> {
         self.request(
-            &self
-                .build_historical_prices_url(coin_ids, date_range, currency)
+            self.build_historical_prices_url(coin_ids, date_range, currency)
                 .as_str(),
         )
         .await
