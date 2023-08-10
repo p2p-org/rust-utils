@@ -18,6 +18,12 @@ pub struct CoinmarketcapClient {
     base_url: String,
 }
 
+impl Default for CoinmarketcapClient {
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
 // core functionality
 impl CoinmarketcapClient {
     fn build_cryptocurrency_info_url(&self, address: String) -> String {
