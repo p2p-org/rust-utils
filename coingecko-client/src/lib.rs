@@ -19,6 +19,16 @@ pub struct CoingeckoClient {
     base_url: String,
 }
 
+impl Default for CoingeckoClient {
+    /// Default client with public base url
+    fn default() -> Self {
+        Self {
+            client: (&HttpClientSettings::default()).into(),
+            base_url: PUBLIC_BASE_URL.to_owned(),
+        }
+    }
+}
+
 impl CoingeckoClient {
     pub fn new(settings: HttpClientSettings) -> anyhow::Result<Self> {
         let HttpClientSettings {
