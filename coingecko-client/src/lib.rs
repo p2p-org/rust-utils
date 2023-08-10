@@ -139,7 +139,7 @@ impl CoingeckoClient {
     pub async fn get_historical_prices(
         &self,
         coin_id: &str,
-        date_range: Range<NaiveDate>,
+        date_range: &Range<NaiveDate>,
         currency: &str,
     ) -> anyhow::Result<Vec<(i64, NormDecimal)>> {
         let url = format!(
