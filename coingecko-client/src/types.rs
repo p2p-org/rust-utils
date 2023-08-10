@@ -10,7 +10,7 @@ pub struct CoingeckoInfo {
     pub symbol: String,
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CoingeckoInfoWithAddress {
     pub metadata: CoingeckoInfo,
     pub addresses: HashMap<String, String>, // Platform, address
