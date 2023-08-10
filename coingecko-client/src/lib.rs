@@ -1,11 +1,13 @@
 use anyhow::Context;
+use chrono::{NaiveDate, NaiveTime};
 use http::{
     header::{ETAG, IF_NONE_MATCH},
     HeaderMap, HeaderName, StatusCode,
 };
 use http_client::settings::HttpClientSettings;
+use normdecimal::NormDecimal;
 use serde::{de::DeserializeOwned, Deserialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 use token_address::StoredTokenAddress;
 use types::{CoingeckoInfo, CoingeckoInfoWithAddress};
 
@@ -132,6 +134,29 @@ impl CoingeckoClient {
             .collect();
 
         Ok(CoingeckoCoinsList { coins_list, etag }.into())
+    }
+
+    pub async fn get_historical_prices(
+        &self,
+        coin_id: &str,
+        date_range: Range<NaiveDate>,
+        currency: &str,
+    ) -> anyhow::Result<Vec<(i64, NormDecimal)>> {
+        let url = format!(
+            "{base_url}/coins/{coin_id}/market_chart/range?vs_currency={currency}&from={from}&to={to}",
+            base_url = self.base_url,
+            from = date_range.start.and_time(NaiveTime::default()).timestamp(),
+            to = date_range.end.and_time(NaiveTime::default()).timestamp(),
+        );
+
+        #[derive(Deserialize)]
+        struct Response {
+            prices: Vec<(i64, NormDecimal)>,
+        }
+
+        let Response { prices } = self.request(&url).await?;
+
+        Ok(prices)
     }
 
     pub async fn request<T: DeserializeOwned>(&self, url: &str) -> anyhow::Result<T> {
