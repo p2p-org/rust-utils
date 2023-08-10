@@ -43,17 +43,6 @@ impl CoinmarketcapClient {
             currency,
         )
     }
-
-    async fn request<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
-        let response = self
-            .client
-            .get(url)
-            .header("X-CMC_PRO_API_KEY", &self.api_key)
-            .send()
-            .await?;
-
-        Ok(response.json().await?)
-    }
 }
 
 // Pub api
@@ -74,6 +63,17 @@ impl CoinmarketcapClient {
             client,
             api_key,
         }
+    }
+
+    pub async fn request<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
+        let response = self
+            .client
+            .get(url)
+            .header("X-CMC_PRO_API_KEY", &self.api_key)
+            .send()
+            .await?;
+
+        Ok(response.json().await?)
     }
 
     pub async fn cryptocurrency_info(&self, address: String) -> Result<Value> {
