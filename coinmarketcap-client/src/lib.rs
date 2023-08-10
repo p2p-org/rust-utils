@@ -18,7 +18,7 @@ static CRYPTOCURRENCY_INFO: &str = "v2/cryptocurrency/info";
 pub struct CoinmarketcapClient {
     client: Client,
     api_key: String,
-    base_url: String,
+    pub base_url: String,
 }
 
 impl Default for CoinmarketcapClient {
