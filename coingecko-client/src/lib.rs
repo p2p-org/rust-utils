@@ -14,6 +14,7 @@ pub mod types;
 pub const PUBLIC_BASE_URL: &str = "https://api.coingecko.com/api/v3";
 pub const PRO_BASE_URL: &str = "https://pro-api.coingecko.com/api/v3";
 
+#[derive(Clone)]
 pub struct CoingeckoClient {
     client: reqwest::Client,
     base_url: String,
