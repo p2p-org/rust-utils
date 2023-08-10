@@ -10,6 +10,12 @@ pub struct CoingeckoInfo {
     pub symbol: String,
 }
 
+impl CoingeckoInfo {
+    pub fn new(coin_id: String, name: String, symbol: String) -> Self {
+        Self { coin_id, name, symbol }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CoingeckoInfoWithAddress {
     pub metadata: CoingeckoInfo,
