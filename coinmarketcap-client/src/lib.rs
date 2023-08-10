@@ -1,10 +1,13 @@
+use std::ops::Range;
+
 use anyhow::Result;
+use chrono::NaiveDate;
 use http_client::settings::HttpClientSettings;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-static URL: &str = "https://pro-api.coinmarketcap.com";
+pub static URL: &str = "https://pro-api.coinmarketcap.com";
 
 static SANDBOX_URL: &str = "https://sandbox-api.coinmarketcap.com";
 static SANDBOX_API_KEY: &str = "b54bcf4d-1bca-4e8e-9a24-22ff2c3d462c";
@@ -28,6 +31,17 @@ impl Default for CoinmarketcapClient {
 impl CoinmarketcapClient {
     fn build_cryptocurrency_info_url(&self, address: String) -> String {
         format!("{url}/{CRYPTOCURRENCY_INFO}?address={address}", url = self.base_url)
+    }
+
+    fn build_historical_prices_url(&self, coin_ids: &[&str], date_range: Range<NaiveDate>, currency: &str) -> String {
+        format!(
+            "{}/v2/cryptocurrency/quotes/historical?interval=daily&aux=price&symbol={}&time_start={}&time_end={}&convert={}",
+            self.base_url,
+            coin_ids.join(","),
+            date_range.start.format("%Y-%m-%d"),
+            date_range.end.format("%Y-%m-%d"),
+            currency,
+        )
     }
 
     async fn request<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
@@ -64,5 +78,19 @@ impl CoinmarketcapClient {
 
     pub async fn cryptocurrency_info(&self, address: String) -> Result<Value> {
         self.request(self.build_cryptocurrency_info_url(address).as_str()).await
+    }
+
+    pub async fn historical_prices(
+        &self,
+        coin_ids: &[&str],
+        date_range: Range<NaiveDate>,
+        currency: &str,
+    ) -> Result<Value> {
+        self.request(
+            &self
+                .build_historical_prices_url(coin_ids, date_range, currency)
+                .as_str(),
+        )
+        .await
     }
 }
