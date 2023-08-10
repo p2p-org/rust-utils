@@ -7,7 +7,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 http-client = { path = "../http-client", version = "0.1.0" }
 normdecimal = { workspace = true }
 reqwest = { workspace = true }
