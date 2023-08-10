@@ -194,6 +194,9 @@ mod tests {
 
     use super::*;
 
+    pub const WHITELISTED_TOKEN: Pubkey = pubkey!("F4SjgUSDx2XqkiNzvX74ANRTTGCWGv5qDcShF8HtMMqd");
+    pub const BLACKLISTED_TOKEN: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // USDC
+
     // Source: https://docs.google.com/spreadsheets/d/1yO6CwMhXpPApkwHXc04_38UdxXv7-2T-Kl0IefB6Vo0/edit#gid=77498325
     pub const NOT_SCAM: [Pubkey; 20] = [
         pubkey!("5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y"),
@@ -218,8 +221,7 @@ mod tests {
         pubkey!("76ijxiMkj4DX8q9QMtqpzTxFnT4KPmWv47sZf2kKoVwk"),
     ];
 
-    pub const SCAM: [Pubkey; 4] = [
-        pubkey!("F4SjgUSDx2XqkiNzvX74ANRTTGCWGv5qDcShF8HtMMqd"),
+    pub const SCAM: [Pubkey; 3] = [
         pubkey!("5iqpxTw7e9CXtopKmh7cp4n6p58gbGGg8YcX8LKAEWSi"),
         pubkey!("J16p4izHspZPne3zcGAgP4c23tkFuVd67MoNfcAMXNwu"),
         pubkey!("Bsw98fp1Ef2E9PUNgd423YmFEQx6yE2ht7rWKdxA9VVW"),
@@ -259,5 +261,20 @@ mod tests {
             assert!(!r, "token: {}", token);
             tokio::time::sleep(std::time::Duration::from_secs(10)).await; // Coingecko API limit
         }
+
+        // before added permission list
+        assert!(!filter.check_token(&WHITELISTED_TOKEN).await.unwrap());
+        assert!(filter.check_token(&BLACKLISTED_TOKEN).await.unwrap());
+
+        let pl = PermissionsList::new(
+            [(WHITELISTED_TOKEN, true), (BLACKLISTED_TOKEN, false)]
+                .into_iter()
+                .collect(),
+        );
+
+        let filter = filter.with_permissions_list(pl);
+
+        assert!(filter.check_token(&WHITELISTED_TOKEN).await.unwrap());
+        assert!(!filter.check_token(&BLACKLISTED_TOKEN).await.unwrap());
     }
 }
