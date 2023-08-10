@@ -11,6 +11,7 @@ async-trait = { workspace = true }
 cached = { workspace = true }
 coingecko-client = { path = "../coingecko-client" }
 coinmarketcap-client = { path = "../coinmarketcap-client" }
+derive_more = { workspace = true }
 http-client = { path = "../http-client" }
 normdecimal = { workspace = true }
 reqwest = { workspace = true }

@@ -4,6 +4,7 @@ use anyhow::Ok;
 use async_trait::async_trait;
 use coingecko_client::CoingeckoClient;
 use coinmarketcap_client::CoinmarketcapClient;
+use derive_more::From;
 use http_client::settings::HttpClientSettings;
 use permissions_list::PermissionsList;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -18,11 +19,17 @@ pub mod jupiter;
 pub mod permissions_list;
 pub mod solana;
 
+#[derive(From)]
 pub enum Checker {
+    #[from]
     Json(JsonChecker),
+    #[from]
     Coinmarketcap(CoinmarketcapClient),
+    #[from]
     Coingecko(CoingeckoClient),
+    #[from]
     Jupiter(JupiterChecker),
+    #[from]
     Solana(Arc<RpcClient>),
 }
 
@@ -53,36 +60,6 @@ impl CheckToken for Checker {
             Checker::Solana(x) => x.check_token(token),
         }
         .await
-    }
-}
-
-impl From<JsonChecker> for Checker {
-    fn from(value: JsonChecker) -> Self {
-        Checker::Json(value)
-    }
-}
-
-impl From<CoinmarketcapClient> for Checker {
-    fn from(value: CoinmarketcapClient) -> Self {
-        Checker::Coinmarketcap(value)
-    }
-}
-
-impl From<CoingeckoClient> for Checker {
-    fn from(value: CoingeckoClient) -> Self {
-        Checker::Coingecko(value)
-    }
-}
-
-impl From<JupiterChecker> for Checker {
-    fn from(value: JupiterChecker) -> Self {
-        Checker::Jupiter(value)
-    }
-}
-
-impl From<Arc<RpcClient>> for Checker {
-    fn from(value: Arc<RpcClient>) -> Self {
-        Checker::Solana(value)
     }
 }
 

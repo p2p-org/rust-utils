@@ -22,6 +22,7 @@ bs58 = { version = "0.4.0" }
 cached = { version = "0.44.0", default-features = false, features = ["async"] }
 chrono = { version = "0.4" }
 config = { version = "0.13", features = ["toml"] }
+derive_more = "0.99.17"
 ed25519-dalek = { version = "1.0.1" }
 ethereum-types = { version = "0.13" }
 flexi_logger = { version = "0.22" }
