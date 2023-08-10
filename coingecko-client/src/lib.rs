@@ -11,8 +11,8 @@ use types::{CoingeckoInfo, CoingeckoInfoWithAddress};
 
 pub mod types;
 
-const PUBLIC_BASE_URL: &str = "https://api.coingecko.com/api/v3";
-const PRO_BASE_URL: &str = "https://pro-api.coingecko.com/api/v3";
+pub const PUBLIC_BASE_URL: &str = "https://api.coingecko.com/api/v3";
+pub const PRO_BASE_URL: &str = "https://pro-api.coingecko.com/api/v3";
 
 pub struct CoingeckoClient {
     client: reqwest::Client,
