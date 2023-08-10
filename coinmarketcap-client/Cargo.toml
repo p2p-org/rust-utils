@@ -9,6 +9,7 @@ version = "0.1.0"
 anyhow = { workspace = true }
 chrono = { workspace = true }
 http-client = { path = "../http-client", version = "0.1.0" }
+normdecimal = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

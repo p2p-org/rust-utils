@@ -6,6 +6,9 @@ use http_client::settings::HttpClientSettings;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use types::PricesResponse;
+
+pub mod types;
 
 pub static URL: &str = "https://pro-api.coinmarketcap.com";
 
@@ -85,7 +88,7 @@ impl CoinmarketcapClient {
         coin_ids: &[&str],
         date_range: Range<NaiveDate>,
         currency: &str,
-    ) -> Result<Value> {
+    ) -> Result<PricesResponse> {
         self.request(
             &self
                 .build_historical_prices_url(coin_ids, date_range, currency)
