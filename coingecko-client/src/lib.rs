@@ -4,7 +4,7 @@ use http::{
     HeaderMap, HeaderName, StatusCode,
 };
 use http_client::settings::HttpClientSettings;
-use serde::Deserialize;
+use serde::{de::DeserializeOwned, Deserialize};
 use std::collections::HashMap;
 use token_address::StoredTokenAddress;
 use types::{CoingeckoInfo, CoingeckoInfoWithAddress};
@@ -121,6 +121,11 @@ impl CoingeckoClient {
             .collect();
 
         Ok(CoingeckoCoinsList { coins_list, etag }.into())
+    }
+
+    pub async fn request<T: DeserializeOwned>(&self, url: &str) -> anyhow::Result<T> {
+        let response = self.client.get(url).send().await?.error_for_status()?;
+        Ok(response.json().await?)
     }
 }
 
