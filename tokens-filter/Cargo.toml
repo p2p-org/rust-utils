@@ -1,0 +1,28 @@
+[package]
+edition = "2021"
+name = "tokens-filter"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+cached = { workspace = true }
+coingecko-client = { path = "../coingecko-client" }
+coinmarketcap-client = { path = "../coinmarketcap-client" }
+derive_more = { workspace = true }
+http-client = { path = "../http-client" }
+normdecimal = { workspace = true }
+reqwest = { workspace = true }
+rust-utils = { path = "../rust-utils", features = ["tokens", "telemetry"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+spl-token = { workspace = true }
+token-address = { path = "../token-address" }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+
+[dev-dependencies]

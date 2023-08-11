@@ -1,4 +1,6 @@
+use anyhow::bail;
 use borsh::BorshDeserialize;
+use reqwest::StatusCode;
 use std::{
     collections::HashMap,
     fs::File,
@@ -218,9 +220,14 @@ pub async fn get_token_symbol_by_mint_from_json(mint: &str) -> anyhow::Result<St
     struct Response {
         symbol: String,
     }
-    let response: Response = reqwest::get(target).await?.json::<Response>().await?;
 
-    Ok(response.symbol)
+    let response = reqwest::get(target).await?;
+
+    match response.status() {
+        StatusCode::NOT_FOUND => bail!("token not found"),
+        StatusCode::OK => Ok(response.json::<Response>().await.map(|x: Response| x.symbol)?),
+        _ => bail!("Unable to get token symbol: {}", response.status()),
+    }
 }
 
 /// Get token symbol from Metaplex Fungible Token Metadata
