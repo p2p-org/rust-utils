@@ -1,3 +1,6 @@
+=== 1.2.0 ===
+added more functions for Keypair extension
+default_bind address for server
 === 1.1.0 ===
 remove `impl_db_settings` macro
 implement Deref, Clone, Debug for `DbRepo` struct
