@@ -151,18 +151,19 @@ mod base58 {
     #[cfg(feature = "solana")]
     mod solana {
         use crate::wrappers::Base58;
+        use borsh::BorshDeserialize;
         use ed25519_dalek::SignatureError;
         use solana_sdk::{
             pubkey::Pubkey,
             signature::{Keypair, ParseSignatureError, Signature},
         };
-        use std::{array::TryFromSliceError, mem::size_of};
+        use std::mem::size_of;
 
         impl<'a> TryFrom<&'a [u8]> for Base58<Pubkey> {
-            type Error = TryFromSliceError;
+            type Error = std::io::Error;
 
             fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-                let pk = Pubkey::try_from(value)?;
+                let pk = Pubkey::try_from_slice(value)?;
                 Ok(Base58(pk))
             }
         }
