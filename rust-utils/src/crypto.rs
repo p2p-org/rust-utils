@@ -185,7 +185,7 @@ mod base58 {
                     return Err(ParseSignatureError::WrongSize);
                 }
 
-                let signature = Signature::new(value);
+                let signature = Signature::try_from(value).map_err(|_| ParseSignatureError::Invalid)?;
                 Ok(Base58(signature))
             }
         }
