@@ -1,13 +1,19 @@
 use axum_tracing_opentelemetry::opentelemetry_tracing_layer;
+use gcloud_env::GCloudRunEnv;
 use jsonrpsee::{
     core::error::Error,
     server::{middleware::proxy_get_request::ProxyGetRequestLayer, AllowHosts, ServerBuilder, ServerHandle},
     Methods,
 };
+use lazy_static::lazy_static;
 use std::{future::Future, net::SocketAddr};
 use tokio::{net::ToSocketAddrs, signal, task::JoinHandle};
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
+
+lazy_static! {
+    pub static ref GCLOUD_ENV: Option<GCloudRunEnv> = GCloudRunEnv::from_env().ok();
+}
 
 pub struct Server {
     address: SocketAddr,
@@ -15,6 +21,14 @@ pub struct Server {
 }
 
 impl Server {
+    pub fn default_bind_address(port: Option<&str>) -> String {
+        if let Some(gcloud) = &*GCLOUD_ENV {
+            format!("0.0.0.0:{}", gcloud.port)
+        } else {
+            format!("127.0.0.1:{}", port.unwrap_or("9999"))
+        }
+    }
+
     pub fn from_handle(address: SocketAddr, handle: ServerHandle) -> Self {
         Self { address, handle }
     }

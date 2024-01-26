@@ -95,12 +95,14 @@ rabbitmq = [
 ]
 rpc = ["gcloud-env", "lazy_static", "serde_with"]
 server = [
+    "gcloud-env",
     "jsonrpsee",
     "tokio",
     "tracing",
     "tower-http",
     "tower",
     "axum-tracing-opentelemetry",
+    "lazy_static",
 ]
 settings = ["config", "log", "serde_with", "paste", "thiserror"]
 solana = ["solana-sdk"]
