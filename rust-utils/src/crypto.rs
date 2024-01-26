@@ -1,4 +1,8 @@
+use std::str::FromStr;
+
+use chrono::Utc;
 use ed25519_dalek::{Keypair, PublicKey, Signature, SignatureError, Signer, Verifier, PUBLIC_KEY_LENGTH};
+use serde::{Deserialize, Serialize};
 
 pub trait KeypairExt {
     type Signature;
@@ -54,6 +58,61 @@ impl PublicKeyExt<Signature> for PublicKey {
 
     fn verify_slice(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.verify(&message, signature)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("signature ttl '{0}' seconds is expired")]
+    TTLExpired(u64),
+    #[error("wrong signature: {0}")]
+    WrongSignature(String),
+    #[error("wrong user: {0}")]
+    WrongUser(String),
+    #[error(transparent)]
+    SignatureError(#[from] SignatureError),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TimedSignature<T> {
+    pub timestamp: u64,
+    pub signature: T,
+}
+
+impl<T> TimedSignature<T> {
+    pub fn new(timestamp: u64, signature: T) -> Self {
+        Self { timestamp, signature }
+    }
+}
+
+pub trait GetSignatureTtl {
+    fn get_signature_ttl(&self) -> Option<u64>;
+}
+
+pub trait CheckSignature: GetSignatureTtl {
+    fn check_signature<T: borsh::ser::BorshSerialize>(
+        &self,
+        pubkey: &str,
+        msg: &T,
+        timed_signature: &TimedSignature<&str>,
+    ) -> Result<(), Error> {
+        if let Some(signature_ttl) = self.get_signature_ttl() {
+            // Debug mode if signature_ttl in settings is 0 we have option to skip checking signature
+            if signature_ttl == 0 && timed_signature.timestamp == 0 {
+                return Ok(());
+            }
+
+            if Utc::now().timestamp() as u64 - timed_signature.timestamp > signature_ttl {
+                return Err(Error::TTLExpired(signature_ttl));
+            }
+        }
+
+        let verifying_key = PublicKey::from_base58(pubkey).ok_or(Error::WrongUser(pubkey.to_string()))?;
+
+        let signature = Signature::from_str(timed_signature.signature)
+            .map_err(|_| Error::WrongSignature(timed_signature.signature.to_string()))?;
+
+        Ok(verifying_key.verify_borsh(msg, &signature)?)
     }
 }
 
@@ -179,6 +238,32 @@ mod solana {
 #[cfg(all(test))]
 mod tests {
     use super::*;
+
+    struct TestService;
+
+    impl CheckSignature for TestService {}
+
+    impl GetSignatureTtl for TestService {
+        fn get_signature_ttl(&self) -> Option<u64> {
+            None
+        }
+    }
+
+    #[test]
+    fn test_signature() {
+        let keys = Keypair::new_rand();
+
+        let user = keys.public.to_base58();
+        let timestamp = 1234567890;
+
+        let msg = (&user, timestamp);
+        let signature = keys.sign_borsh(&msg).to_string();
+
+        let tests_service = TestService;
+        tests_service
+            .check_signature(&user, &msg, &TimedSignature::new(timestamp, &signature))
+            .unwrap();
+    }
 
     #[test]
     fn check_signing() {

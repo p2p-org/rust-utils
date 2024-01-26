@@ -74,7 +74,7 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 client = ["jsonrpsee", "tower", "tower-opentelemetry"]
-crypto = ["ed25519-dalek", "borsh", "bs58", "rand"]
+crypto = ["ed25519-dalek", "borsh", "bs58", "rand", "chrono", "thiserror"]
 db = ["sqlx/postgres", "async-trait", "serde_with"]
 default = []
 error = ["strum", "strum_macros", "thiserror"]
