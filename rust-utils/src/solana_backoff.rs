@@ -19,10 +19,9 @@ async fn call<I: std::fmt::Debug>(
             tracing::warn!(?err, "Transient error happened while SolanaRpc call");
             backoff::Error::transient(err)
         },
-        ClientErrorKind::SerdeJson(_)
-        | ClientErrorKind::SigningError(_)
-        | ClientErrorKind::TransactionError(_)
-        | ClientErrorKind::FaucetError(_) => backoff::Error::permanent(err),
+        ClientErrorKind::SerdeJson(_) | ClientErrorKind::SigningError(_) | ClientErrorKind::TransactionError(_) => {
+            backoff::Error::permanent(err)
+        },
     })
 }
 
