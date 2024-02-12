@@ -19,7 +19,7 @@ pub const PRO_BASE_URL: &str = "https://pro-api.coingecko.com/api/v3";
 #[derive(Clone)]
 pub struct CoingeckoClient {
     client: reqwest::Client,
-    base_url: String,
+    pub base_url: String,
 }
 
 impl Default for CoingeckoClient {
