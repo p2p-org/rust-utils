@@ -87,10 +87,12 @@ where
             }
         }
 
-        let message = serde_json::from_slice::<T::Message>(delivery.data.as_ref()).map_err(|error| {
-            tagged_warn!(tag = delivery.delivery_tag; "Failed to deserialize message: {error:?}");
-            error
-        })?;
+        let message = serde_json::from_slice::<T::Message>(delivery.data.as_ref())
+            .map_err(|error| {
+                tagged_warn!(tag = delivery.delivery_tag; "Failed to deserialize message: {error:?}");
+                error
+            })
+            .context(PermanentError)?;
         self.handle_message(message).await.map_err(|error| {
             tagged_warn!(tag = delivery.delivery_tag; "Failed to handle message: {error:?}");
             error
