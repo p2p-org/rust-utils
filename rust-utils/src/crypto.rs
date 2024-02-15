@@ -63,8 +63,8 @@ impl PublicKeyExt<Signature> for PublicKey {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("signature ttl '{0}' seconds is expired")]
-    TTLExpired(u64),
+    #[error("signature ttl '{0}' seconds is expired (server timestamp {1})")]
+    TTLExpired(u64, u64),
     #[error("wrong signature: {0}")]
     WrongSignature(String),
     #[error("wrong user: {0}")]
@@ -102,8 +102,9 @@ pub trait CheckSignature: GetSignatureTtl {
                 return Ok(());
             }
 
-            if Utc::now().timestamp() as u64 - timed_signature.timestamp > signature_ttl {
-                return Err(Error::TTLExpired(signature_ttl));
+            let now = Utc::now().timestamp() as u64;
+            if now.abs_diff(timed_signature.timestamp) > signature_ttl {
+                return Err(Error::TTLExpired(signature_ttl, now));
             }
         }
 
