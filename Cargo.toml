@@ -25,7 +25,7 @@ config = { version = "0.13", features = ["toml"] }
 derive_more = "0.99.17"
 ed25519-dalek = { version = "1.0.1" }
 ethereum-types = { version = "0.13" }
-flexi_logger = { version = "0.22" }
+flexi_logger = { version = "0.31" }
 futures = { version = "0.3.21" }
 gcloud-env = { version = "0.1.0" }
 hex-literal = "0.4.1"
