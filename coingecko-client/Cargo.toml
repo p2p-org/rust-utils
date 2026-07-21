@@ -17,5 +17,5 @@ sqlx = { workspace = true }
 token-address = { path = "../token-address", version = "0.1.0" }
 
 [dev-dependencies]
-claims = "0.7.1"
+claims = "0.8.0"
 tokio = { workspace = true, features = ["full"] }
